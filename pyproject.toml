@@ -46,6 +46,7 @@ signalmoat = "signalmoat.cli:main"
 Repository = "https://github.com/XSiddhSaraf/signalmoat"
 Issues = "https://github.com/XSiddhSaraf/signalmoat/issues"
 Changelog = "https://github.com/XSiddhSaraf/signalmoat/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/XSiddhSaraf/signalmoat/blob/main/GETTING_STARTED.md"
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/tests", "/examples", "/scripts", "/README.md", "/LICENSE", "/CHANGELOG.md"]

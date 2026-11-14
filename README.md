@@ -8,6 +8,9 @@ replays a stolen session.
 > Status: **alpha (0.3)**. Start in `monitor` mode. APIs may change before 1.0.
 > SignalMoat was called **SentryCove** up to version 0.2.1; see the [changelog](https://github.com/XSiddhSaraf/signalmoat/blob/main/CHANGELOG.md) for what to rename.
 
+**New here? Follow the [Getting Started guide](https://github.com/XSiddhSaraf/signalmoat/blob/main/GETTING_STARTED.md)**
+— install, write a policy, plug it in, get alerts — for Python, Node, ASP.NET Core or any app via the reverse proxy.
+
 ## Why
 
 Bot traffic is no longer "bot vs human". AI agents browse with real browsers
