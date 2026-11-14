@@ -47,19 +47,33 @@ do not leave a long gap between steps 2 and the first release.
 
 ### npm
 
-1. Create an account at <https://www.npmjs.com> and turn on two-factor authentication.
-2. npm configures trusted publishing from a package's own settings page. If it
-   does not let you do that before the package exists, publish the first
-   version by hand from your computer:
-   ```bash
-   cd clients/node && npm ci && npm login && npm publish --access public
-   ```
-3. On the package's **Settings** page add a *trusted publisher* for GitHub
-   Actions using the table above with environment `npm`. Do this shortly before
-   your next release: npm drops a new trusted-publisher entry that has not
-   published successfully within two days.
-4. Set the repository variable `PUBLISH_NPM` to `true` on GitHub
+npm sets up trusted publishing on a package's own settings page, so the package
+has to exist first. The very first version is therefore published by hand from
+your computer; every later version is published by the release workflow.
+
+**First version, by hand** (needs Node.js 22 or newer and git):
+
+```bash
+git clone https://github.com/XSiddhSaraf/sentrycove.git
+cd sentrycove/clients/node
+npm ci                          # install the build tools
+npm login                       # opens npmjs.com in your browser; approve with 2FA
+npm whoami                      # should print your npm user name
+npm publish --access public     # builds the package, then uploads it (asks for 2FA again)
+```
+
+Check that <https://www.npmjs.com/package/sentrycove> shows the new version.
+
+**Later versions, automatically.** Do this shortly before your *next* release —
+npm drops a trusted-publisher entry that has not published within two days:
+
+1. Open <https://www.npmjs.com/package/sentrycove/access> and find **Trusted Publisher**.
+2. Choose **GitHub Actions** and enter the table above with environment `npm`.
+3. Set the repository variable `PUBLISH_NPM` to `true` on GitHub
    ([where to set it](#one-time-setup)).
+
+If a release tag is pushed for a version that is already on npm (such as the
+one you published by hand), the workflow notices and skips npm instead of failing.
 
 ### NuGet
 

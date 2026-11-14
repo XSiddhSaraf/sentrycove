@@ -87,8 +87,16 @@ jobs:
           node -e 'const [a, b, c] = process.argv[1].split(".").map(Number); process.exit(a > 11 || (a === 11 && (b > 5 || (b === 5 && c >= 1))) ? 0 : 1)' "$version"
       - run: npm ci
         working-directory: clients/node
-      - run: npm publish --access public
+      - name: Publish (skipped if this version is already on npm)
         working-directory: clients/node
+        run: |
+          set -euo pipefail
+          package="$(node -p 'require("./package.json").name + "@" + require("./package.json").version')"
+          if npm view "$package" version >/dev/null 2>&1; then
+            echo "$package is already on npm (for example, published by hand); nothing to do."
+          else
+            npm publish --access public
+          fi
 
   nuget:
     name: Publish to NuGet
