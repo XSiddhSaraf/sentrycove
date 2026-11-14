@@ -4,6 +4,31 @@ All notable changes to SignalMoat (called SentryCove up to 0.2.1) are recorded h
 Node package, the .NET package and the container image share one version
 number and are released together.
 
+## Unreleased
+
+### Added
+- **Shared state in Redis** (`state.backend: redis`, `pip install "signalmoat[redis]"`):
+  bans, failed-login counters, session fingerprints, Web Bot Auth nonces and
+  alert de-duplication are shared by every worker and host. Updates are atomic
+  server-side scripts; every key expires; a circuit breaker makes a Redis
+  outage fail fast so `fail_open` applies without slowing requests.
+- **WebSocket support**: handshakes are screened by the engine in the reverse
+  proxy and the ASGI middleware; the proxy relays messages both ways; open
+  connections are closed (1008) when their IP is banned. New `websocket` section.
+- **JA4 TLS fingerprints** from a trusted TLS terminator (`ja4` section, needs
+  `trusted_proxy_hops >= 1`): rules can match `ja4` patterns, and a
+  `ja4_browser_mismatch` alert flags clients faking a browser User-Agent.
+- **AI alert triage** (`alerts.triage`, off by default): important alerts get an
+  advisory "what happened / how bad / what to do" note from Anthropic or any
+  OpenAI-compatible API, with time, cost and prompt-injection safeguards.
+  Alerts gain an optional `triage` field.
+
+### Changed
+- `Engine.on_response` is now `async` (await it). Only matters if you call the
+  engine directly; the middleware, proxy and decision API already do.
+- The `server` extra now includes `websockets`; the container image includes
+  the Redis client.
+
 ## 0.3.2
 
 No changes to how SignalMoat behaves.

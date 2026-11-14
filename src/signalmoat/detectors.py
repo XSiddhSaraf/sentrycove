@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass
 from typing import Optional
 
 from .clientip import network_prefix
 from .config import HoneypotConfig, LoginConfig, SessionConfig
 from .paths import path_matches
-from .store import SlidingWindowCounter, TTLCache
+from .state import NS_LOGIN_GLOBAL, NS_LOGIN_IP, NS_SESSION, StateBackend
 
 
 class HoneypotDetector:
@@ -32,12 +33,9 @@ class LoginSignal:
 class LoginMonitor:
     """Detects credential stuffing / brute force from failed-login responses."""
 
-    def __init__(self, cfg: LoginConfig, max_keys: int) -> None:
+    def __init__(self, cfg: LoginConfig, state: StateBackend) -> None:
         self._cfg = cfg
-        self._per_ip: SlidingWindowCounter[str] = SlidingWindowCounter(
-            cfg.window_seconds, max_keys, cfg.per_ip_threshold
-        )
-        self._global: SlidingWindowCounter[str] = SlidingWindowCounter(cfg.window_seconds, 1, cfg.global_threshold)
+        self._state = state
 
     def is_login_path(self, path: str) -> bool:
         return self._cfg.enabled and path_matches(path, self._cfg.paths)
@@ -45,15 +43,16 @@ class LoginMonitor:
     def is_failure(self, status: int) -> bool:
         return status in self._cfg.failure_statuses
 
-    def record_failure(self, client_ip: Optional[str]) -> list[LoginSignal]:
+    async def record_failure(self, client_ip: Optional[str]) -> list[LoginSignal]:
         """Count one failed login. Pass ``None`` when the client address is unknown:
         the failure then counts only towards the site-wide total."""
+        cfg = self._cfg
         signals = []
         if client_ip is not None:
-            ip_count = self._per_ip.hit(client_ip)
-            if ip_count >= self._cfg.per_ip_threshold:
-                signals.append(LoginSignal("ip", ip_count, self._cfg.window_seconds))
-        global_count = self._global.hit("all")
+            ip_count = await self._state.hit(NS_LOGIN_IP, client_ip, cfg.window_seconds, cfg.per_ip_threshold)
+            if ip_count >= cfg.per_ip_threshold:
+                signals.append(LoginSignal("ip", ip_count, cfg.window_seconds))
+        global_count = await self._state.hit(NS_LOGIN_GLOBAL, "all", cfg.window_seconds, cfg.global_threshold)
         if global_count >= self._cfg.global_threshold:
             signals.append(LoginSignal("global", global_count, self._cfg.window_seconds))
         return signals
@@ -75,6 +74,17 @@ class _Fingerprint:
     accept_language: str
     net: str
 
+    def dumps(self) -> str:
+        return json.dumps([self.user_agent, self.accept_language, self.net], separators=(",", ":"))
+
+    @classmethod
+    def loads(cls, raw: str) -> Optional[_Fingerprint]:
+        try:
+            ua, lang, net = json.loads(raw)
+        except (ValueError, TypeError):
+            return None
+        return cls(str(ua), str(lang), str(net))
+
 
 @dataclass(frozen=True)
 class SessionSignal:
@@ -92,11 +102,11 @@ class SessionMonitor:
     SHA-256 hashes.
     """
 
-    def __init__(self, cfg: SessionConfig, max_keys: int) -> None:
+    def __init__(self, cfg: SessionConfig, state: StateBackend) -> None:
         self._cfg = cfg
-        self._seen: TTLCache[str, _Fingerprint] = TTLCache(max_keys, cfg.ttl_seconds)
+        self._state = state
 
-    def observe(
+    async def observe(
         self,
         cookie_headers: list[str],
         client_ip: str,
@@ -111,9 +121,11 @@ class SessionMonitor:
             return None
         session_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()[:16]
         current = _Fingerprint(user_agent, accept_language, network_prefix(client_ip))
-        known = self._seen.get(session_hash)
-        if known is None:
-            self._seen.set(session_hash, current)
+        stored = await self._state.remember_first(NS_SESSION, session_hash, current.dumps(), self._cfg.ttl_seconds)
+        if stored is None:
+            return None
+        known = _Fingerprint.loads(stored)
+        if known is None:  # unreadable entry (e.g. written by another version): treat as unchanged
             return None
         if known.user_agent != current.user_agent or known.accept_language != current.accept_language:
             return SessionSignal(

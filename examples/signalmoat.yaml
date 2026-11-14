@@ -57,8 +57,31 @@ session:
   ttl_seconds: 86400
   alert_on_ip_change: false
 
+# Where bans, counters, nonces and session fingerprints live. Use redis when
+# running several workers or hosts (pip install "signalmoat[redis]").
+state:
+  backend: memory               # memory | redis
+  redis_url_env: SIGNALMOAT_REDIS_URL
+
+websocket:
+  enabled: true
+  ban_recheck_seconds: 15
+
+# JA4 TLS fingerprints from your TLS terminator (needs trusted_proxy_hops >= 1).
+ja4:
+  enabled: false
+  header: cf-ja4
+
 alerts:
   cooldown_seconds: 300
+  # Optional plain-language "what happened, how bad, what to do" from an LLM.
+  triage:
+    enabled: false
+    provider: anthropic         # anthropic | openai (any OpenAI-compatible API)
+    model: claude-haiku-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    min_severity: high
+    max_per_hour: 60
   sinks:
     - type: log
       min_severity: low

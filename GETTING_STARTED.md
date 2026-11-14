@@ -258,8 +258,13 @@ banned for an hour.
   default). Set `fail_open: false` if you would rather refuse requests that
   could not be checked.
 - **Health check:** the proxy and the local service answer `GET /_signalmoat/health`.
-- **More than one server or worker?** Each keeps its own counters for now, so
-  limits apply per process.
+- **More than one server or worker?** Each keeps its own counters unless you
+  share them through Redis: add `state: {backend: redis}` to the policy and
+  set `SIGNALMOAT_REDIS_URL` (see the README).
+- **WebSockets** going through the reverse proxy or the Python middleware are
+  checked when they open, and cut off if their address is banned later.
+- **Want alerts explained in plain language?** Turn on `alerts.triage` (see
+  the README); it is optional and never blocks anything.
 
 ## Help
 

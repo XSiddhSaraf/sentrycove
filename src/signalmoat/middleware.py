@@ -11,6 +11,7 @@ Handlers can read the caller's classification from
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import time
@@ -58,6 +59,9 @@ class SignalMoat:
         await self.engine.aclose()
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "websocket":
+            await self._websocket(scope, receive, send)
+            return
         if scope["type"] != "http":
             await self.app(scope, receive, send)
             return
@@ -89,7 +93,7 @@ class SignalMoat:
         async def send_wrapper(message: Message) -> None:
             if message["type"] == "http.response.start":
                 try:
-                    self.engine.on_response(
+                    await self.engine.on_response(
                         client_ip=verdict.client_ip,
                         method=verdict.request.method,
                         path=verdict.request.path,
@@ -101,6 +105,110 @@ class SignalMoat:
             await send(message)
 
         await self.app(scope, receive, send_wrapper)
+
+    # -- WebSocket ----------------------------------------------------------
+
+    async def _websocket(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Screen the opening handshake; while open, cut the connection if its IP gets banned."""
+        ws_cfg = self.config.websocket
+        if not ws_cfg.enabled:
+            await _reject_websocket(receive, send, 403)
+            return
+        peer = scope["client"][0] if scope.get("client") else None
+        state = scope.setdefault("state", {})
+        try:
+            verdict = await self.engine.inspect(RequestInfo.from_scope(scope), peer)
+        except Exception:
+            log.exception("signalmoat inspection failed (websocket)")
+            if not self.config.fail_open:
+                await _reject_websocket(receive, send, 503)
+                return
+            state["signalmoat"] = AgentIdentity("unclassified", None, "inspection failed")
+            state["signalmoat_client_ip"] = None
+            await self.app(scope, receive, send)
+            return
+        if verdict.block_status is not None:
+            await _reject_websocket(receive, send, verdict.block_status)
+            return
+        state["signalmoat"] = verdict.identity
+        state["signalmoat_client_ip"] = verdict.client_ip
+        if not self.engine.enforcing or ws_cfg.ban_recheck_seconds <= 0:
+            await self.app(scope, receive, send)
+            return
+        watch = _BanWatch(self.engine, verdict.client_ip, ws_cfg.ban_recheck_seconds, send)
+        await watch.run(self.app, scope, receive)
+
+
+async def _reject_websocket(receive: Receive, send: Send, status: int) -> None:
+    """Refuse a WebSocket handshake. Servers answer a close-before-accept with HTTP 403."""
+    message = await receive()
+    if message["type"] != "websocket.connect":
+        return
+    await send({"type": "websocket.close", "code": 1008, "reason": f"refused ({status})"})
+
+
+class _BanWatch:
+    """Closes an open WebSocket (code 1008) once its client IP is banned.
+
+    After the close, further messages from the app are dropped and the app's
+    ``receive`` returns a disconnect, so the app winds down normally.
+    """
+
+    def __init__(self, engine: Engine, client_ip: str, interval: float, send: Send) -> None:
+        self._engine = engine
+        self._ip = client_ip
+        self._interval = interval
+        self._send = send
+        self._closed = False
+        self._cut = asyncio.Event()
+
+    async def send(self, message: Message) -> None:
+        if self._closed:
+            return
+        if message["type"] == "websocket.close":
+            self._closed = True
+        await self._send(message)
+
+    def receiver(self, receive: Receive) -> Receive:
+        async def guarded() -> Message:
+            if self._cut.is_set():
+                return {"type": "websocket.disconnect", "code": 1008}
+            pending = asyncio.ensure_future(receive())
+            cut = asyncio.ensure_future(self._cut.wait())
+            done, _ = await asyncio.wait({pending, cut}, return_when=asyncio.FIRST_COMPLETED)
+            if pending in done:
+                cut.cancel()
+                return pending.result()
+            pending.cancel()
+            return {"type": "websocket.disconnect", "code": 1008}
+
+        return guarded
+
+    async def _watch(self) -> None:
+        while not self._closed:
+            await asyncio.sleep(self._interval)
+            try:
+                banned = await self._engine.is_banned(self._ip)
+            except Exception as exc:  # state store down: keep the connection (fail open)
+                log.warning("signalmoat could not re-check websocket client %s: %s", self._ip, exc)
+                continue
+            if banned:
+                log.info("closing websocket from banned address %s", self._ip)
+                self._cut.set()
+                if not self._closed:
+                    self._closed = True
+                    try:
+                        await self._send({"type": "websocket.close", "code": 1008, "reason": "banned"})
+                    except Exception:  # connection already gone
+                        log.debug("websocket already closed", exc_info=True)
+                return
+
+    async def run(self, app: ASGIApp, scope: Scope, receive: Receive) -> None:
+        watcher = asyncio.ensure_future(self._watch())
+        try:
+            await app(scope, self.receiver(receive), self.send)
+        finally:
+            watcher.cancel()
 
 
 async def respond_json(send: Send, status: int, body: dict, extra_headers: Optional[list] = None) -> None:

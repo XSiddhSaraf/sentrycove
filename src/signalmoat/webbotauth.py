@@ -33,6 +33,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 from .config import WebBotAuthConfig
 from .sfv import InnerList, Item, SFVError, parse_dictionary, serialize_inner_list, serialize_item
+from .state import NS_NONCE, MemoryState, StateBackend
 from .store import TTLCache
 
 log = logging.getLogger("signalmoat.webbotauth")
@@ -233,12 +234,14 @@ class WebBotAuthVerifier:
         cfg: WebBotAuthConfig,
         directory: KeyDirectory,
         clock: Callable[[], float] = time.time,
+        state: Optional[StateBackend] = None,
     ) -> None:
         self._cfg = cfg
         self._dir = directory
         self._clock = clock
-        nonce_ttl = cfg.max_signature_age_seconds + cfg.clock_skew_seconds
-        self._nonces: TTLCache[tuple[str, str], bool] = TTLCache(100_000, nonce_ttl)
+        # A nonce must be remembered for as long as a signature carrying it could still be accepted.
+        self._nonce_ttl = cfg.max_signature_age_seconds + cfg.clock_skew_seconds
+        self._nonces: StateBackend = state if state is not None else MemoryState(100_000)
 
     async def verify(self, msg: SignedMessage) -> VerificationResult:
         sig_input_raw = ", ".join(msg.header_values("signature-input"))
@@ -325,11 +328,10 @@ class WebBotAuthVerifier:
                 key.verify(signature, base.encode("ascii"))
             except InvalidSignature:
                 return VerificationResult(False, "bad signature", signature_agent=origin, keyid=keyid)
-            if isinstance(nonce, str):
-                nonce_key = (origin, nonce)
-                if nonce_key in self._nonces:
-                    return VerificationResult(False, "replayed nonce", signature_agent=origin, keyid=keyid)
-                self._nonces.set(nonce_key, True)
+            # Claimed atomically, so with a shared backend a nonce is accepted
+            # exactly once across every SignalMoat process.
+            if isinstance(nonce, str) and not await self._nonces.claim(NS_NONCE, f"{origin}|{nonce}", self._nonce_ttl):
+                return VerificationResult(False, "replayed nonce", signature_agent=origin, keyid=keyid)
             return VerificationResult(
                 True,
                 "ok",

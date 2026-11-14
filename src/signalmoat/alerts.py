@@ -14,7 +14,9 @@ from typing import Optional, Protocol
 import httpx
 
 from .config import AlertsConfig, SinkConfig
+from .state import NS_ALERT, StateBackend
 from .store import TTLCache
+from .triage import Triage
 
 log = logging.getLogger("signalmoat.alerts")
 
@@ -34,6 +36,8 @@ class Alert:
     action_taken: str = "none"
     dedupe_key: str = ""
     timestamp: float = field(default_factory=time.time)
+    #: Advisory LLM note (what_happened / how_bad / what_to_do), when triage is enabled.
+    triage: Optional[dict[str, str]] = None
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -80,6 +84,15 @@ class WebhookSink:
             f"Request: `{_slack_escape(alert.method or '-')} {_slack_escape(alert.path or '-')}`"
             f"  Action: `{alert.action_taken}`",
         ]
+        if alert.triage:
+            lines.append("_AI triage (advisory, may be wrong):_")
+            for label, key in (
+                ("What happened", "what_happened"),
+                ("How bad", "how_bad"),
+                ("What to do", "what_to_do"),
+            ):
+                if alert.triage.get(key):
+                    lines.append(f"• *{label}:* {_slack_escape(alert.triage[key])}")
         return {"text": "\n".join(line for line in lines if line)}
 
     async def send(self, alert: Alert) -> None:
@@ -114,22 +127,32 @@ class AlertDispatcher:
         sinks: list[tuple[AlertSink, str]],
         cooldown_seconds: float,
         clock: Callable[[], float] = time.monotonic,
+        shared_state: Optional[StateBackend] = None,
+        triage: Optional[Triage] = None,
     ) -> None:
         self._sinks = sinks
+        self._triage = triage
         self._cooldown = cooldown_seconds
+        #: With a shared backend, an alert raised by several workers is sent once.
+        self._shared = shared_state if cooldown_seconds > 0 else None
         self._recent: Optional[TTLCache[str, bool]] = (
             TTLCache(50_000, cooldown_seconds, clock) if cooldown_seconds > 0 else None
         )
         self._tasks: set[asyncio.Task] = set()
 
     @classmethod
-    def from_config(cls, cfg: AlertsConfig) -> AlertDispatcher:
+    def from_config(cls, cfg: AlertsConfig, shared_state: Optional[StateBackend] = None) -> AlertDispatcher:
         sinks: list[tuple[AlertSink, str]] = []
         for sink_cfg in cfg.sinks:
             sink = build_sink(sink_cfg, cfg.timeout_seconds)
             if sink is not None:
                 sinks.append((sink, sink_cfg.min_severity))
-        return cls(sinks, cfg.cooldown_seconds)
+        return cls(sinks, cfg.cooldown_seconds, shared_state=shared_state, triage=Triage.from_config(cfg.triage))
+
+    def use_shared_state(self, state: StateBackend) -> None:
+        """De-duplicate across processes through ``state`` (no-op when cooldown is 0)."""
+        if self._cooldown > 0:
+            self._shared = state
 
     def emit(self, alert: Alert) -> bool:
         """Queue an alert for delivery. Returns False if suppressed as a duplicate."""
@@ -138,14 +161,25 @@ class AlertDispatcher:
             if key in self._recent:
                 return False
             self._recent.set(key, True)
+        targets = [sink for sink, min_sev in self._sinks if SEVERITY_ORDER[alert.severity] >= SEVERITY_ORDER[min_sev]]
+        if not targets:
+            return True
         loop = asyncio.get_running_loop()
-        for sink, min_sev in self._sinks:
-            if SEVERITY_ORDER[alert.severity] < SEVERITY_ORDER[min_sev]:
-                continue
-            task = loop.create_task(self._deliver(sink, alert))
-            self._tasks.add(task)
-            task.add_done_callback(self._tasks.discard)
+        task = loop.create_task(self._dispatch(targets, alert, key))
+        self._tasks.add(task)
+        task.add_done_callback(self._tasks.discard)
         return True
+
+    async def _dispatch(self, targets: list[AlertSink], alert: Alert, key: str) -> None:
+        if self._shared is not None:
+            try:
+                if not await self._shared.claim(NS_ALERT, key, self._cooldown):
+                    return  # another SignalMoat process already sent this alert
+            except Exception as exc:  # shared store down: better a duplicate than a lost alert
+                log.warning("shared alert de-duplication unavailable: %s", exc)
+        if self._triage is not None:
+            alert = await self._triage.enrich(alert)  # bounded by its timeout; never raises
+        await asyncio.gather(*(self._deliver(sink, alert) for sink in targets))
 
     @staticmethod
     async def _deliver(sink: AlertSink, alert: Alert) -> None:
@@ -163,3 +197,5 @@ class AlertDispatcher:
         await self.drain()
         for sink, _ in self._sinks:
             await sink.aclose()
+        if self._triage is not None:
+            await self._triage.aclose()

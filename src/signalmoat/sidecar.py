@@ -165,7 +165,7 @@ class DecisionAPI:
 
     async def _report(self, report: ResponseReport, send: Send) -> None:
         try:
-            self.engine.on_response(
+            await self.engine.on_response(
                 client_ip=report.client_ip,
                 method=report.method,
                 path=report.target,

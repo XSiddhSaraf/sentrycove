@@ -26,9 +26,11 @@ from .clientip import resolve_client_ip
 from .config import Config, load_config
 from .detectors import HoneypotDetector, LoginMonitor, SessionMonitor
 from .identity import AgentIdentity, classify
+from .ja4 import JA4, browser_mismatch
+from .ja4 import from_headers as ja4_from_headers
 from .paths import normalize_decoded_path, normalize_match_path
 from .policy import evaluate
-from .store import TTLCache
+from .state import StateBackend, build_state
 from .webbotauth import (
     Fetcher,
     KeyDirectory,
@@ -95,9 +97,12 @@ class RequestInfo:
 
     @classmethod
     def from_scope(cls, scope: Any) -> RequestInfo:
-        """Build from an ASGI HTTP scope."""
+        """Build from an ASGI HTTP or WebSocket scope.
+
+        A WebSocket handshake is an HTTP GET; ``ws``/``wss`` map to ``http``/``https``.
+        """
         headers = [(k.decode("latin-1").lower(), v.decode("latin-1")) for k, v in scope.get("headers", [])]
-        scheme = scope.get("scheme", "http")
+        scheme = {"ws": "http", "wss": "https"}.get(scope.get("scheme", "http"), scope.get("scheme", "http"))
         host = next((v for k, v in headers if k == "host"), "")
         if not host and scope.get("server"):
             server_host, server_port = scope["server"][0], scope["server"][1]
@@ -128,6 +133,8 @@ class Verdict:
     block_status: Optional[int] = None
     #: True when the caller should report the response status (login monitoring).
     watch_response: bool = False
+    #: JA4 TLS fingerprint from the trusted TLS terminator, when enabled and present.
+    ja4: Optional[JA4] = None
 
     @property
     def blocked(self) -> bool:
@@ -142,29 +149,37 @@ class Engine:
         dispatcher: Optional[AlertDispatcher] = None,
         key_fetcher: Fetcher = _httpx_fetch,
         clock: Callable[[], float] = time.time,
+        state: Optional[StateBackend] = None,
     ) -> None:
         if isinstance(config, Config):
             self.config = config
         else:
             self.config = load_config(config if config is not None else {})
         cfg = self.config
-        self.alerts = dispatcher or AlertDispatcher.from_config(cfg.alerts)
+        #: Bans, counters, nonces and session fingerprints (per process, or shared via Redis).
+        self.state: StateBackend = state if state is not None else build_state(cfg.state, cfg.limits.max_tracked_keys)
+        shared = cfg.state.backend != "memory" or state is not None
+        if dispatcher is None:
+            dispatcher = AlertDispatcher.from_config(cfg.alerts, shared_state=self.state if shared else None)
+        elif shared:
+            dispatcher.use_shared_state(self.state)
+        self.alerts = dispatcher
         self._verifier: Optional[WebBotAuthVerifier] = None
         if cfg.web_bot_auth.enabled and cfg.web_bot_auth.trusted_agents:
             directory = KeyDirectory(cfg.web_bot_auth, fetcher=key_fetcher, clock=clock)
-            self._verifier = WebBotAuthVerifier(cfg.web_bot_auth, directory, clock=clock)
+            self._verifier = WebBotAuthVerifier(cfg.web_bot_auth, directory, clock=clock, state=self.state)
         self._honeypot = HoneypotDetector(cfg.honeypots)
-        self._login = LoginMonitor(cfg.login, cfg.limits.max_tracked_keys)
-        self._sessions = SessionMonitor(cfg.session, cfg.limits.max_tracked_keys)
-        self._bans: TTLCache[str, bool] = TTLCache(cfg.limits.max_tracked_keys, max(1, cfg.honeypots.ban_seconds))
+        self._login = LoginMonitor(cfg.login, self.state)
+        self._sessions = SessionMonitor(cfg.session, self.state)
 
     @property
     def enforcing(self) -> bool:
         return self.config.mode == "enforce"
 
     async def aclose(self) -> None:
-        """Flush pending alerts and close HTTP clients (call on shutdown)."""
+        """Flush pending alerts and close HTTP and Redis clients (call on shutdown)."""
         await self.alerts.aclose()
+        await self.state.aclose()
 
     # -- request side --------------------------------------------------------
 
@@ -189,14 +204,14 @@ class Engine:
             watch_response=self._login.is_login_path(request.match_path),
         )
 
-        if self.enforcing and ip_known and client_ip in self._bans:
+        if self.enforcing and ip_known and await self.state.is_banned(client_ip):
             verdict.block_status = 403
             return verdict
 
         if self._honeypot.is_trap(request.match_path):
             banned = self.enforcing and ip_known and cfg.honeypots.ban_seconds > 0
             if banned:
-                self._bans.set(client_ip, True, ttl_seconds=cfg.honeypots.ban_seconds)
+                await self.state.ban(client_ip, cfg.honeypots.ban_seconds)
             self._alert(
                 verdict,
                 "honeypot_hit",
@@ -226,7 +241,26 @@ class Engine:
                 )
         verdict.identity = classify(user_agent, verification, cfg.declared_bot_tokens, cfg.automation_tokens)
 
-        decision = evaluate(cfg.rules, verdict.identity, request.method, request.match_path)
+        if cfg.ja4.enabled:
+            verdict.ja4 = ja4_from_headers(request.header_values(cfg.ja4.header))
+            if (
+                verdict.ja4 is not None
+                and cfg.ja4.alert_on_browser_mismatch
+                and verdict.identity.kind == "unclassified"
+            ):
+                reason = browser_mismatch(user_agent, verdict.ja4)
+                if reason is not None:
+                    self._alert(
+                        verdict,
+                        "ja4_browser_mismatch",
+                        cfg.ja4.mismatch_severity,
+                        "Client pretends to be a browser — TLS fingerprint says otherwise",
+                        f"{reason}; JA4 {verdict.ja4.value}",
+                        action="observed",
+                        dedupe=f"ja4mismatch|{client_ip}|{verdict.ja4.value}",
+                    )
+
+        decision = evaluate(cfg.rules, verdict.identity, request.method, request.match_path, verdict.ja4)
         if decision.action in ("block", "monitor") and decision.rule is not None:
             will_block = decision.action == "block" and self.enforcing
             if decision.action == "block":
@@ -238,7 +272,11 @@ class Engine:
                 "policy_match",
                 decision.rule.severity,
                 f"Rule '{decision.rule.name}' matched {verdict.identity.label}",
-                verdict.identity.detail,
+                "; ".join(
+                    part
+                    for part in (verdict.identity.detail, f"JA4 {verdict.ja4.value}" if verdict.ja4 else "")
+                    if part
+                ),
                 action=action,
                 dedupe=f"rule|{decision.rule.name}|{client_ip}|{verdict.identity.label}",
             )
@@ -246,7 +284,7 @@ class Engine:
                 verdict.block_status = 403
                 return verdict
 
-        signal = self._sessions.observe(
+        signal = await self._sessions.observe(
             request.header_values("cookie"),
             client_ip,
             user_agent,
@@ -266,9 +304,19 @@ class Engine:
             )
         return verdict
 
+    async def is_banned(self, client_ip: Optional[str]) -> bool:
+        """True if ``client_ip`` is banned right now and bans are enforced.
+
+        Used to cut off long-lived connections (WebSockets) whose IP was banned
+        after they were opened.
+        """
+        if not self.enforcing or not client_ip or client_ip == UNKNOWN_IP:
+            return False
+        return await self.state.is_banned(client_ip)
+
     # -- response side -------------------------------------------------------
 
-    def on_response(self, *, client_ip: str, method: str, path: str, agent: str, status: int) -> None:
+    async def on_response(self, *, client_ip: str, method: str, path: str, agent: str, status: int) -> None:
         """Record the app's response status for a request (failed-login monitoring).
 
         ``path`` is the raw request path. Safe to call for every response:
@@ -277,7 +325,7 @@ class Engine:
         raw_path = path.partition("?")[0] or "/"
         if not self._login.is_login_path(normalize_match_path(raw_path)) or not self._login.is_failure(status):
             return
-        for sig in self._login.record_failure(client_ip if client_ip != UNKNOWN_IP else None):
+        for sig in await self._login.record_failure(client_ip if client_ip != UNKNOWN_IP else None):
             if sig.scope == "ip":
                 title = "Repeated failed logins from one IP — likely brute force"
                 detail = f"{sig.count} failures within {sig.window_seconds}s"

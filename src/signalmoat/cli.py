@@ -87,7 +87,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         from .proxy import create_proxy_app
 
         try:
-            app = create_proxy_app(args.upstream, engine=_load_engine(args.config), preserve_host=not args.rewrite_host)
+            engine = _load_engine(args.config)
+            app = create_proxy_app(args.upstream, engine=engine, preserve_host=not args.rewrite_host)
         except ValueError as exc:
             print(f"error: {exc}", file=sys.stderr)
             return 2
@@ -102,6 +103,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             date_header=False,
             access_log=False,
             log_config=None,
+            ws_max_size=engine.config.websocket.max_message_bytes,
         )
         return 0
 

@@ -28,9 +28,12 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-server = ["uvicorn>=0.30"]
+server = ["uvicorn>=0.30", "websockets>=15"]
+redis = ["redis>=5.0"]
 dev = [
   "uvicorn>=0.30",
+  "websockets>=15",
+  "redis>=5.0",
   "pytest>=8",
   "fastapi>=0.110",
   "http-message-signatures>=0.5",

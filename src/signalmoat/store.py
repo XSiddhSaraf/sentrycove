@@ -1,8 +1,9 @@
 """Bounded in-memory state stores.
 
 Everything is size-capped so an attacker cannot exhaust memory by
-sending unique keys. State is per-process: with several workers or
-hosts, each keeps its own view (a shared Redis backend is on the roadmap).
+sending unique keys. These are the building blocks of the per-process
+:class:`signalmoat.state.MemoryState`; for state shared between workers or
+hosts, see :class:`signalmoat.state.RedisState`.
 """
 
 from __future__ import annotations
