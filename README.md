@@ -30,10 +30,10 @@ One detection engine, four ways to put it in front of your app:
 |---|---|---|
 | Anything (PHP, Java, Go, Ruby, Rails, WordPress, ...) | [Reverse proxy](#reverse-proxy-any-language) (Docker) | none |
 | Python: FastAPI, Starlette, any ASGI app | [ASGI middleware](#python-fastapi--starlette--asgi) | one line |
-| Node: Express, Next.js, Hono, plain `http` | [`clients/node`](clients/node) | a few lines |
-| ASP.NET Core (.NET 8 / 10) | [`clients/dotnet`](clients/dotnet) | a few lines |
+| Node: Express, Next.js, Hono, plain `http` | [`clients/node`](https://github.com/XSiddhSaraf/sentrycove/tree/main/clients/node) | a few lines |
+| ASP.NET Core (.NET 8 / 10) | [`clients/dotnet`](https://github.com/XSiddhSaraf/sentrycove/tree/main/clients/dotnet) | a few lines |
 
-All four read the same policy file — copy [`examples/sentrycove.yaml`](examples/sentrycove.yaml)
+All four read the same policy file — copy [`examples/sentrycove.yaml`](https://github.com/XSiddhSaraf/sentrycove/blob/main/examples/sentrycove.yaml)
 and adjust the paths.
 
 ### Reverse proxy (any language)
@@ -96,8 +96,8 @@ builder.Services.AddSentryCove(o => { o.Url = new Uri("http://127.0.0.1:8787"); 
 app.UseSentryCove();
 ```
 
-See [`clients/node`](clients/node) (including Next.js) and
-[`clients/dotnet`](clients/dotnet) for details.
+See [`clients/node`](https://github.com/XSiddhSaraf/sentrycove/tree/main/clients/node) (including Next.js) and
+[`clients/dotnet`](https://github.com/XSiddhSaraf/sentrycove/tree/main/clients/dotnet) for details.
 
 ## What it detects
 
@@ -152,7 +152,7 @@ and .NET middleware) if you prefer requests to be refused instead.
   is a single Python process — fine for small and medium sites, not a CDN.
 - **Next.js / edge runtimes** cannot see the response status, so failed-login
   monitoring needs the Express middleware or the reverse proxy; see
-  [`clients/node`](clients/node) for how the client address is determined.
+  [`clients/node`](https://github.com/XSiddhSaraf/sentrycove/tree/main/clients/node) for how the client address is determined.
 - Session-hijack detection compares User-Agent and Accept-Language, so a
   browser auto-update can cause a false positive. It alerts; it never blocks.
 - Web Bot Auth is an IETF **draft**; the verifier implements Ed25519 signatures
@@ -190,6 +190,8 @@ ruff check src tests && mypy --ignore-missing-imports src
 dotnet run -c Release --project clients/dotnet/tests/SentryCove.AspNetCore.Tests
 ```
 
+Releases are described in [RELEASING.md](https://github.com/XSiddhSaraf/sentrycove/blob/main/RELEASING.md).
+
 The Node and .NET suites start the real decision API and run the middleware
 against it. The Python suite includes real-socket reverse-proxy tests, an
 interoperability test that verifies signatures produced by the independent
@@ -198,5 +200,5 @@ interoperability test that verifies signatures produced by the independent
 ## License
 
 Apache-2.0. Contributions require agreeing to the CLA — see
-[CONTRIBUTING.md](CONTRIBUTING.md). Report vulnerabilities privately as
-described in [SECURITY.md](SECURITY.md).
+[CONTRIBUTING.md](https://github.com/XSiddhSaraf/sentrycove/blob/main/CONTRIBUTING.md). Report vulnerabilities privately as
+described in [SECURITY.md](https://github.com/XSiddhSaraf/sentrycove/blob/main/SECURITY.md).

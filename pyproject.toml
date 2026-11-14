@@ -1,5 +1,5 @@
 [build-system]
-requires = ["hatchling>=1.24"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -45,6 +45,10 @@ sentrycove = "sentrycove.cli:main"
 [project.urls]
 Repository = "https://github.com/XSiddhSaraf/sentrycove"
 Issues = "https://github.com/XSiddhSaraf/sentrycove/issues"
+Changelog = "https://github.com/XSiddhSaraf/sentrycove/blob/main/CHANGELOG.md"
+
+[tool.hatch.build.targets.sdist]
+include = ["/src", "/tests", "/examples", "/scripts", "/README.md", "/LICENSE", "/CHANGELOG.md"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sentrycove"]

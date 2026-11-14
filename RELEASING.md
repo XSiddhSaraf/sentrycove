@@ -1,0 +1,102 @@
+# Releasing SentryCove
+
+One version tag publishes everything: the Python package (PyPI), the Node
+package (npm), the .NET package (NuGet), a multi-arch container image (GitHub
+Container Registry) and a GitHub release with the built files attached.
+
+No passwords or API tokens are stored in this repository. PyPI, npm and NuGet
+each *trust this repository's release workflow directly* ("trusted
+publishing"): at release time GitHub proves to the registry which workflow is
+running, and the registry issues a credential that lasts minutes.
+
+## One-time setup
+
+Each registry stays switched off until you set its repository variable
+(**Settings → Secrets and variables → Actions → Variables → New repository
+variable**), so you can enable them one at a time.
+
+Use these values wherever a registry asks which workflow to trust:
+
+| Field | Value |
+|---|---|
+| Owner / organisation | `XSiddhSaraf` |
+| Repository | `sentrycove` |
+| Workflow file | `release.yml` |
+| Environment | `pypi`, `npm` or `nuget` (one per registry, as below) |
+
+### PyPI
+
+1. Create an account at <https://pypi.org> and turn on two-factor authentication.
+2. Open **Account → Publishing** and add a *pending publisher* for GitHub:
+   PyPI project name `sentrycove`, plus the table above with environment `pypi`.
+3. Set the repository variable `PUBLISH_PYPI` to `true`.
+
+The name `sentrycove` is not reserved until the first release is published, so
+do not leave a long gap between steps 2 and the first release.
+
+### npm
+
+1. Create an account at <https://www.npmjs.com> and turn on two-factor authentication.
+2. npm configures trusted publishing from a package's own settings page. If it
+   does not let you do that before the package exists, publish the first
+   version by hand from your computer:
+   ```bash
+   cd clients/node && npm ci && npm login && npm publish --access public
+   ```
+3. On the package's **Settings** page add a *trusted publisher* for GitHub
+   Actions using the table above with environment `npm`. Do this shortly before
+   your next release: npm drops a new trusted-publisher entry that has not
+   published successfully within two days.
+4. Set the repository variable `PUBLISH_NPM` to `true`.
+
+### NuGet
+
+1. Create an account at <https://www.nuget.org>.
+2. Click your user name → **Trusted Publishing** → add a policy with yourself
+   as owner and the table above with environment `nuget`.
+3. Add a repository *secret* named `NUGET_USER` containing your nuget.org user
+   name (the profile name, not your email address).
+4. Set the repository variable `PUBLISH_NUGET` to `true`.
+
+### Container image
+
+Nothing to set up: the image is pushed to
+`ghcr.io/xsiddhsaraf/sentrycove` with the workflow's own GitHub token. GitHub
+creates container packages as **private**, so after the first release open the
+package's settings page and change its visibility to **Public**.
+
+### Recommended hardening
+
+- **Settings → Environments**: open `pypi`, `npm` and `nuget` (GitHub creates
+  them on first use, or create them yourself beforehand) and add yourself as a
+  *required reviewer*. Publishing then waits for your click.
+- **Settings → Rules → Rulesets**: restrict who may create tags matching `v*`.
+- Enable **private vulnerability reporting** under Settings → Security.
+
+## Cutting a release
+
+1. Set the new version in all four places and add a `CHANGELOG.md` entry:
+   - `pyproject.toml` and `src/sentrycove/__init__.py`
+   - `clients/node/package.json` (then run `npm install` there to refresh the lock file)
+   - `clients/dotnet/src/SentryCove.AspNetCore/SentryCove.AspNetCore.csproj`
+
+   `python scripts/check_versions.py` confirms they agree.
+2. Merge to `main` and wait for CI to pass.
+3. Tag and push:
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+4. Watch **Actions → Release**. The workflow first checks that the tag matches
+   the package versions, then runs the complete test suite, and only then publishes.
+
+After the first release, delete the "not yet published" note at the top of `README.md`.
+
+## Things to know
+
+- **A published version is permanent.** PyPI, npm and NuGet never let a version
+  number be reused, even after deletion. If a release is wrong, fix it and
+  publish the next patch version.
+- Only plain `vX.Y.Z` tags trigger a release; there is no pre-release channel yet.
+- If one registry fails, the others are unaffected. Fix the cause and use
+  **Re-run failed jobs** — but only if that registry has not already accepted the version.

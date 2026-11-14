@@ -22,4 +22,6 @@ Only the latest released minor version receives security fixes during the
 
 - Maintainer and CI tokens are scoped to the minimum needed and rotated;
   access is revoked immediately when someone leaves the project.
-- Releases are built in CI from tagged commits.
+- Releases are built and published by CI from tagged commits (see `RELEASING.md`). No registry
+  passwords or API tokens are stored: PyPI, npm and NuGet trust the release workflow directly.
+- Third-party GitHub Actions are pinned to full commit hashes.
