@@ -6,9 +6,15 @@ import time
 
 import pytest
 
-from agentgate.config import WebBotAuthConfig
-from agentgate.middleware import _ScopeMessage
-from agentgate.webbotauth import KeyDirectory, WebBotAuthVerifier, jwk_thumbprint, normalize_authority, normalize_origin
+from sentrycove.config import WebBotAuthConfig
+from sentrycove.engine import RequestInfo
+from sentrycove.webbotauth import (
+    KeyDirectory,
+    WebBotAuthVerifier,
+    jwk_thumbprint,
+    normalize_authority,
+    normalize_origin,
+)
 
 from .conftest import AGENT_ORIGIN, FakeFetcher, make_key, sign_headers
 
@@ -21,7 +27,7 @@ def cfg(**overrides) -> WebBotAuthConfig:
 
 def message(headers: dict[str, str], *, method="GET", path="/", query="", host="testserver", scheme="http"):
     raw = [(b"host", host.encode())] + [(k.lower().encode(), v.encode()) for k, v in headers.items()]
-    return _ScopeMessage.from_scope(
+    return RequestInfo.from_scope(
         {
             "type": "http",
             "method": method,

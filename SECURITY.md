@@ -1,6 +1,6 @@
 # Security Policy
 
-AgentGate is security software, so vulnerabilities in it matter more than usual.
+SentryCove is security software, so vulnerabilities in it matter more than usual.
 
 ## Reporting a vulnerability
 

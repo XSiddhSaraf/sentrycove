@@ -3,7 +3,7 @@ requires = ["hatchling>=1.24"]
 build-backend = "hatchling.build"
 
 [project]
-name = "agentgate"
+name = "sentrycove"
 version = "0.1.0"
 description = "Open-source agent firewall and early-warning layer for web apps: verify AI agents, enforce per-agent policies, detect hijacked sessions and credential stuffing."
 readme = "README.md"
@@ -38,7 +38,7 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/agentgate"]
+packages = ["src/sentrycove"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

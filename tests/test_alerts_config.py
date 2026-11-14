@@ -5,11 +5,11 @@ import asyncio
 import pytest
 from pydantic import ValidationError
 
-from agentgate.alerts import Alert, AlertDispatcher, WebhookSink, build_sink
-from agentgate.config import SinkConfig, load_config
-from agentgate.identity import AgentIdentity
-from agentgate.policy import evaluate
-from agentgate.store import SlidingWindowCounter, TTLCache
+from sentrycove.alerts import Alert, AlertDispatcher, WebhookSink, build_sink
+from sentrycove.config import SinkConfig, load_config
+from sentrycove.identity import AgentIdentity
+from sentrycove.policy import evaluate
+from sentrycove.store import SlidingWindowCounter, TTLCache
 
 
 class ListSink:
@@ -71,7 +71,7 @@ def test_config_rejects_typos_and_bad_selectors():
 def test_example_policy_file_loads():
     from pathlib import Path
 
-    cfg = load_config(Path(__file__).resolve().parent.parent / "examples" / "agentgate.yaml")
+    cfg = load_config(Path(__file__).resolve().parent.parent / "examples" / "sentrycove.yaml")
     assert cfg.mode == "monitor"
 
 

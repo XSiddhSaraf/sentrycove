@@ -2,7 +2,7 @@ from decimal import Decimal
 
 import pytest
 
-from agentgate.sfv import InnerList, Item, SFVError, Token, parse_dictionary, serialize_inner_list, serialize_item
+from sentrycove.sfv import InnerList, Item, SFVError, Token, parse_dictionary, serialize_inner_list, serialize_item
 
 
 def test_parse_signature_input_inner_list_with_params():

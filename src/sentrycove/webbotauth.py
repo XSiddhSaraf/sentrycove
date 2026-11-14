@@ -35,7 +35,7 @@ from .config import WebBotAuthConfig
 from .sfv import InnerList, Item, SFVError, parse_dictionary, serialize_inner_list, serialize_item
 from .store import TTLCache
 
-log = logging.getLogger("agentgate.webbotauth")
+log = logging.getLogger("sentrycove.webbotauth")
 
 DIRECTORY_PATH = "/.well-known/http-message-signatures-directory"
 WEB_BOT_AUTH_TAG = "web-bot-auth"

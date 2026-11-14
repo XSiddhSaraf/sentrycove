@@ -10,8 +10,8 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from agentgate.alerts import Alert, AlertDispatcher
-from agentgate.webbotauth import jwk_thumbprint
+from sentrycove.alerts import Alert, AlertDispatcher
+from sentrycove.webbotauth import jwk_thumbprint
 
 AGENT_ORIGIN = "https://agent.example"
 

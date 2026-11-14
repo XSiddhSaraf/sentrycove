@@ -13,9 +13,13 @@ from typing import Optional
 
 def _valid_ip(value: str) -> Optional[str]:
     try:
-        return str(ipaddress.ip_address(value.strip()))
+        addr = ipaddress.ip_address(value.strip())
     except ValueError:
         return None
+    # "::ffff:203.0.113.9" (IPv4 seen through a dual-stack socket) is the same client as "203.0.113.9".
+    if addr.version == 6 and addr.ipv4_mapped is not None:
+        addr = addr.ipv4_mapped
+    return str(addr)
 
 
 def resolve_client_ip(peer: Optional[str], xff_values: list[str], trusted_proxy_hops: int) -> str:

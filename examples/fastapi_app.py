@@ -1,4 +1,4 @@
-"""Minimal FastAPI app protected by AgentGate.
+"""Minimal FastAPI app protected by SentryCove.
 
 Run (from the repository root):
     pip install -e ".[dev]" uvicorn
@@ -16,10 +16,10 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 
-from agentgate import AgentGate
+from sentrycove import SentryCove
 
 logging.basicConfig(level=logging.INFO)
-POLICY = Path(__file__).with_name("agentgate.yaml")
+POLICY = Path(__file__).with_name("sentrycove.yaml")
 
 
 @asynccontextmanager
@@ -33,8 +33,8 @@ api = FastAPI(lifespan=lifespan)
 
 @api.get("/")
 def home(request: Request):
-    # Handlers can see who AgentGate thinks is calling.
-    return {"you_are": request.state.agentgate.label}
+    # Handlers can see who SentryCove thinks is calling.
+    return {"you_are": request.state.sentrycove.label}
 
 
 @api.post("/contact")
@@ -47,6 +47,6 @@ def login():
     raise HTTPException(status_code=401, detail="invalid credentials")
 
 
-# The one line that matters. (api.add_middleware(AgentGate, config=POLICY) also
+# The one line that matters. (api.add_middleware(SentryCove, config=POLICY) also
 # works; wrapping explicitly gives you a handle for clean shutdown.)
-app = AgentGate(api, config=POLICY)
+app = SentryCove(api, config=POLICY)

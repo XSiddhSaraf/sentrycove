@@ -1,4 +1,4 @@
-# Contributing to AgentGate
+# Contributing to SentryCove
 
 Thanks for helping make apps safer.
 
@@ -24,7 +24,7 @@ accepting the first external contribution. -->
 
 ## Design rules
 
-- Fail open: an error inside AgentGate must never break the protected app.
+- Fail open: an error inside SentryCove must never break the protected app.
 - Bounded resources: every tracker must have a size cap and expiry.
 - No network calls to attacker-controlled destinations.
 - Never log or alert with raw secrets, tokens or passwords.

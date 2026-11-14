@@ -4,11 +4,11 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass
-from fnmatch import fnmatchcase
 from typing import Optional
 
 from .clientip import network_prefix
 from .config import HoneypotConfig, LoginConfig, SessionConfig
+from .paths import path_matches
 from .store import SlidingWindowCounter, TTLCache
 
 
@@ -19,7 +19,7 @@ class HoneypotDetector:
         self._cfg = cfg
 
     def is_trap(self, path: str) -> bool:
-        return self._cfg.enabled and any(fnmatchcase(path, p) for p in self._cfg.paths)
+        return self._cfg.enabled and path_matches(path, self._cfg.paths)
 
 
 @dataclass(frozen=True)
@@ -40,16 +40,19 @@ class LoginMonitor:
         self._global: SlidingWindowCounter[str] = SlidingWindowCounter(cfg.window_seconds, 1, cfg.global_threshold)
 
     def is_login_path(self, path: str) -> bool:
-        return self._cfg.enabled and any(fnmatchcase(path, p) for p in self._cfg.paths)
+        return self._cfg.enabled and path_matches(path, self._cfg.paths)
 
     def is_failure(self, status: int) -> bool:
         return status in self._cfg.failure_statuses
 
-    def record_failure(self, client_ip: str) -> list[LoginSignal]:
+    def record_failure(self, client_ip: Optional[str]) -> list[LoginSignal]:
+        """Count one failed login. Pass ``None`` when the client address is unknown:
+        the failure then counts only towards the site-wide total."""
         signals = []
-        ip_count = self._per_ip.hit(client_ip)
-        if ip_count >= self._cfg.per_ip_threshold:
-            signals.append(LoginSignal("ip", ip_count, self._cfg.window_seconds))
+        if client_ip is not None:
+            ip_count = self._per_ip.hit(client_ip)
+            if ip_count >= self._cfg.per_ip_threshold:
+                signals.append(LoginSignal("ip", ip_count, self._cfg.window_seconds))
         global_count = self._global.hit("all")
         if global_count >= self._cfg.global_threshold:
             signals.append(LoginSignal("global", global_count, self._cfg.window_seconds))

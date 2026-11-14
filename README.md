@@ -1,4 +1,4 @@
-# AgentGate
+# SentryCove
 
 **An open-source agent firewall and early-warning layer for web apps.**
 Know *which* AI agent is calling your app, decide what each one may do, and get
@@ -11,7 +11,7 @@ replays a stolen session — with one line of code.
 
 Bot traffic in 2026 is no longer "bot vs human". AI agents browse with real
 browsers from cloud infrastructure, antidetect browsers replay stolen session
-cookies, and User-Agent strings prove nothing. AgentGate answers three
+cookies, and User-Agent strings prove nothing. SentryCove answers three
 questions on every request:
 
 1. **Who is this?** Cryptographically verified AI agent (Web Bot Auth / RFC 9421),
@@ -24,24 +24,24 @@ questions on every request:
 ## Quick start (FastAPI / Starlette / any ASGI app)
 
 ```bash
-pip install agentgate            # from source for now: pip install -e .
+pip install sentrycove            # from source for now: pip install -e .
 ```
 
 ```python
 from fastapi import FastAPI
-from agentgate import AgentGate
+from sentrycove import SentryCove
 
 app = FastAPI()
-app.add_middleware(AgentGate, config="agentgate.yaml")
+app.add_middleware(SentryCove, config="sentrycove.yaml")
 ```
 
-Copy [`examples/agentgate.yaml`](examples/agentgate.yaml), adjust the paths,
+Copy [`examples/sentrycove.yaml`](examples/sentrycove.yaml), adjust the paths,
 and run. Your handlers can read the caller's classification:
 
 ```python
 @app.get("/")
 def home(request: Request):
-    return {"caller": request.state.agentgate.label}   # e.g. "verified:example-agent"
+    return {"caller": request.state.sentrycove.label}   # e.g. "verified:example-agent"
 ```
 
 ## What it detects (v0.1)
@@ -62,7 +62,7 @@ def home(request: Request):
 2. Tune rules and honeypot paths until alerts are meaningful.
 3. Switch to `mode: enforce`. Blocking applies to `block` rules, honeypots and bans.
 
-`fail_open: true` (default) means a bug in AgentGate never takes your app down.
+`fail_open: true` (default) means a bug in SentryCove never takes your app down.
 
 ## Security design
 

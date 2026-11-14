@@ -1,12 +1,12 @@
-"""AgentGate: an open-source agent firewall and early-warning layer for web apps."""
+"""SentryCove: an open-source agent firewall and early-warning layer for web apps."""
 
 from .alerts import Alert, AlertDispatcher, LogSink, WebhookSink
 from .config import Config, load_config
 from .identity import AgentIdentity
-from .middleware import AgentGate
+from .middleware import SentryCove
 
 __all__ = [
-    "AgentGate",
+    "SentryCove",
     "AgentIdentity",
     "Alert",
     "AlertDispatcher",
