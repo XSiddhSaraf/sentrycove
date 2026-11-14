@@ -18,11 +18,13 @@
     <RepositoryType>git</RepositoryType>
     <PackageTags>security;bot-detection;ai-agents;aspnetcore;middleware;web-bot-auth</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
+    <None Include="../../../../assets/signalmoat-icon-128.png" Pack="true" PackagePath="/icon.png" Visible="false" />
     <InternalsVisibleTo Include="SignalMoat.AspNetCore.Tests" />
   </ItemGroup>
 

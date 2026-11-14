@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/XSiddhSaraf/signalmoat/main/assets/signalmoat-icon-256.png" alt="SignalMoat" width="96" height="96" align="right">
+
 # signalmoat (Node.js)
 
 SignalMoat middleware for **Express**, **Next.js** and any Node server.
