@@ -59,6 +59,8 @@ jobs:
           name: python-dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
+        with:
+          skip-existing: true   # makes "Re-run jobs" safe after a partial release
 
   npm:
     name: Publish to npm
@@ -131,6 +133,7 @@ jobs:
     needs: ci
     runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false   # one architecture failing must not cancel the other mid-push
       matrix:
         include:
           - { arch: amd64, runner: ubuntu-latest }
