@@ -15,9 +15,14 @@ if [[ $OFFLINE -eq 0 && -z "${ANTHROPIC_API_KEY:-}" ]]; then
   echo "Set ANTHROPIC_API_KEY, or run with --offline." >&2; exit 2
 fi
 
-if [[ ! -d .venv ]]; then
+if [[ ! -x .venv/bin/signalmoat || ! -x .venv/bin/datasette ]]; then
+  rm -rf .venv
   python3 -m venv .venv
-  .venv/bin/pip install -q datasette "signalmoat[server]>=0.4.0"
+  if ! .venv/bin/pip install -q --upgrade datasette "signalmoat[server]>=0.4.0"; then
+    rm -rf .venv   # never leave a half-built environment behind
+    echo "Install failed. If signalmoat 0.4.0 was published minutes ago, retry with: PIP_NO_CACHE_DIR=1 ./run_demo.sh" >&2
+    exit 1
+  fi
 fi
 PY=.venv/bin/python; BIN=.venv/bin
 
