@@ -1,19 +1,19 @@
 # Decision API for the Node/Next.js and ASP.NET Core middleware.
 #
-#   SENTRYCOVE_API_TOKEN=$(python -c "import secrets; print(secrets.token_urlsafe(32))") \
+#   SIGNALMOAT_API_TOKEN=$(python -c "import secrets; print(secrets.token_urlsafe(32))") \
 #     docker compose -f deploy/docker-compose.sidecar.yml up --build
 #
 # Published on localhost only: never expose this API to the internet.
 services:
-  sentrycove:
+  signalmoat:
     build: ..
     command: ["sidecar"]
     ports:
       - "127.0.0.1:8787:8080"
     environment:
-      SENTRYCOVE_API_TOKEN: ${SENTRYCOVE_API_TOKEN:?set SENTRYCOVE_API_TOKEN to a long random secret}
+      SIGNALMOAT_API_TOKEN: ${SIGNALMOAT_API_TOKEN:?set SIGNALMOAT_API_TOKEN to a long random secret}
     volumes:
-      - ../examples/sentrycove.yaml:/etc/sentrycove/sentrycove.yaml:ro
+      - ../examples/signalmoat.yaml:/etc/signalmoat/signalmoat.yaml:ro
     read_only: true
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]

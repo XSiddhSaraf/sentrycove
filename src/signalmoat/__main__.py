@@ -1,4 +1,4 @@
-"""``python -m sentrycove``."""
+"""``python -m signalmoat``."""
 
 import sys
 

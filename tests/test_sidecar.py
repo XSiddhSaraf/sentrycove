@@ -5,9 +5,9 @@ import asyncio
 import httpx
 import pytest
 
-from sentrycove.cli import main
-from sentrycove.engine import Engine
-from sentrycove.sidecar import DecisionAPI
+from signalmoat.cli import main
+from signalmoat.engine import Engine
+from signalmoat.sidecar import DecisionAPI
 
 from .conftest import RecordingDispatcher
 
@@ -133,7 +133,7 @@ def test_bad_input_is_rejected_without_echoing_it(api):
         ("POST", "/v1/inspect", {"content": b"x" * (1100 * 1024), "headers": AUTH}),
         ("GET", "/v1/inspect", {"headers": AUTH}),
         ("POST", "/v1/nope", {"json": {}, "headers": AUTH}),
-        ("GET", "/_sentrycove/health", {}),
+        ("GET", "/_signalmoat/health", {}),
     )
     assert bad_target.status_code == 422 and "no-leading-slash" not in bad_target.text
     assert [not_json.status_code, too_big.status_code] == [400, 400]
@@ -145,7 +145,7 @@ def test_fail_open_and_fail_closed_on_engine_errors(monkeypatch):
     def explode(*args, **kwargs):
         raise RuntimeError("bug")
 
-    monkeypatch.setattr("sentrycove.engine.classify", explode)
+    monkeypatch.setattr("signalmoat.engine.classify", explode)
     open_api = DecisionAPI(Engine(POLICY, dispatcher=RecordingDispatcher()), TOKEN)
     closed_api = DecisionAPI(Engine({**POLICY, "fail_open": False}, dispatcher=RecordingDispatcher()), TOKEN)
     (opened,) = call(open_api, ("POST", "/v1/inspect", {"json": inspect_body(), "headers": AUTH}))
@@ -161,12 +161,12 @@ def test_cli_validates_config_and_refuses_to_start_without_a_token(tmp_path, mon
     bad.write_text("mdoe: enforce\n")
     assert main(["check-config", str(good)]) == 0
     assert main(["check-config", str(bad)]) == 1
-    monkeypatch.delenv("SENTRYCOVE_API_TOKEN", raising=False)
+    monkeypatch.delenv("SIGNALMOAT_API_TOKEN", raising=False)
     assert main(["sidecar"]) == 2
-    monkeypatch.delenv("SENTRYCOVE_UPSTREAM", raising=False)
+    monkeypatch.delenv("SIGNALMOAT_UPSTREAM", raising=False)
     assert main(["proxy"]) == 2
     assert main(["proxy", "--upstream", "not-a-url"]) == 2
-    assert "SENTRYCOVE_API_TOKEN" in capsys.readouterr().err
+    assert "SIGNALMOAT_API_TOKEN" in capsys.readouterr().err
 
 
 def test_oversized_requests_are_still_judged_not_refused(api):

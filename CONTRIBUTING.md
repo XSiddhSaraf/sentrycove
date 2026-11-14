@@ -1,4 +1,4 @@
-# Contributing to SentryCove
+# Contributing to SignalMoat
 
 Thanks for helping make apps safer.
 
@@ -25,10 +25,10 @@ accepting the first external contribution. -->
 
 ## Design rules
 
-- Fail open: an error inside SentryCove must never break the protected app.
+- Fail open: an error inside SignalMoat must never break the protected app.
 - Bounded resources: every tracker must have a size cap and expiry.
 - No network calls to attacker-controlled destinations.
 - Never log or alert with raw secrets, tokens or passwords.
-- One engine: detection logic lives in `src/sentrycove/`. The Node and .NET packages stay thin
+- One engine: detection logic lives in `src/signalmoat/`. The Node and .NET packages stay thin
   clients of the decision API so every language behaves identically.
-- Match on canonical paths (`sentrycove.paths`) so rules cannot be dodged with encoding tricks.
+- Match on canonical paths (`signalmoat.paths`) so rules cannot be dodged with encoding tricks.

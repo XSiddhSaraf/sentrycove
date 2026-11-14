@@ -1,4 +1,4 @@
-"""Command line entry point: ``sentrycove proxy | sidecar | check-config``."""
+"""Command line entry point: ``signalmoat proxy | sidecar | check-config``."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from . import __version__
 from .config import load_config
 from .engine import Engine
 
-log = logging.getLogger("sentrycove")
+log = logging.getLogger("signalmoat")
 
 
 def _env_int(name: str, default: int) -> int:
@@ -27,19 +27,19 @@ def _env_int(name: str, default: int) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="sentrycove", description="Agent firewall and early-warning layer.")
-    parser.add_argument("--version", action="version", version=f"sentrycove {__version__}")
+    parser = argparse.ArgumentParser(prog="signalmoat", description="Agent firewall and early-warning layer.")
+    parser.add_argument("--version", action="version", version=f"signalmoat {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     def common(p: argparse.ArgumentParser, default_port: int) -> None:
-        p.add_argument("--config", default=os.environ.get("SENTRYCOVE_CONFIG"), help="policy YAML file")
-        p.add_argument("--host", default=os.environ.get("SENTRYCOVE_HOST", "127.0.0.1"), help="address to listen on")
-        p.add_argument("--port", type=int, default=_env_int("SENTRYCOVE_PORT", default_port))
+        p.add_argument("--config", default=os.environ.get("SIGNALMOAT_CONFIG"), help="policy YAML file")
+        p.add_argument("--host", default=os.environ.get("SIGNALMOAT_HOST", "127.0.0.1"), help="address to listen on")
+        p.add_argument("--port", type=int, default=_env_int("SIGNALMOAT_PORT", default_port))
 
     proxy = sub.add_parser("proxy", help="reverse proxy in front of an app in any language")
     common(proxy, 8080)
     proxy.add_argument(
-        "--upstream", default=os.environ.get("SENTRYCOVE_UPSTREAM"), help="the app to protect, e.g. http://app:3000"
+        "--upstream", default=os.environ.get("SIGNALMOAT_UPSTREAM"), help="the app to protect, e.g. http://app:3000"
     )
     proxy.add_argument(
         "--rewrite-host", action="store_true", help="send the upstream's own host name instead of the client's Host"
@@ -77,12 +77,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     try:
         import uvicorn
     except ImportError:
-        print('this command needs the server extra: pip install "sentrycove[server]"', file=sys.stderr)
+        print('this command needs the server extra: pip install "signalmoat[server]"', file=sys.stderr)
         return 1
 
     if args.command == "proxy":
         if not args.upstream:
-            print("--upstream (or SENTRYCOVE_UPSTREAM) is required, e.g. http://127.0.0.1:3000", file=sys.stderr)
+            print("--upstream (or SIGNALMOAT_UPSTREAM) is required, e.g. http://127.0.0.1:3000", file=sys.stderr)
             return 2
         from .proxy import create_proxy_app
 
@@ -92,7 +92,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(f"error: {exc}", file=sys.stderr)
             return 2
         log.info("proxying %s:%d -> %s", args.host, args.port, args.upstream)
-        # proxy_headers=False: SentryCove resolves the client address itself (trusted_proxy_hops).
+        # proxy_headers=False: SignalMoat resolves the client address itself (trusted_proxy_hops).
         uvicorn.run(
             app,
             host=args.host,
@@ -105,12 +105,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         return 0
 
-    token = os.environ.get("SENTRYCOVE_API_TOKEN", "")
+    token = os.environ.get("SIGNALMOAT_API_TOKEN", "")
     from .sidecar import MIN_TOKEN_LENGTH, DecisionAPI
 
     if len(token) < MIN_TOKEN_LENGTH:
         print(
-            f"SENTRYCOVE_API_TOKEN must be set to a secret of at least {MIN_TOKEN_LENGTH} characters "
+            f"SIGNALMOAT_API_TOKEN must be set to a secret of at least {MIN_TOKEN_LENGTH} characters "
             '(generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))")',
             file=sys.stderr,
         )

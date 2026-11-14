@@ -2,7 +2,7 @@
 
   <!--
     A self-contained test runner (no test framework packages needed).
-    It starts the real SentryCove decision API (Python) and runs the middleware against it:
+    It starts the real SignalMoat decision API (Python) and runs the middleware against it:
 
         pip install -e "../../../..[server]"
         dotnet run -c Release
@@ -14,11 +14,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <IsPackable>false</IsPackable>
-    <RootNamespace>SentryCove.AspNetCore.Tests</RootNamespace>
+    <RootNamespace>SignalMoat.AspNetCore.Tests</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="../../src/SentryCove.AspNetCore/SentryCove.AspNetCore.csproj" />
+    <ProjectReference Include="../../src/SignalMoat.AspNetCore/SignalMoat.AspNetCore.csproj" />
   </ItemGroup>
 
 </Project>

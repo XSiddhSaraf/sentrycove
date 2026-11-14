@@ -1,14 +1,14 @@
-"""Reverse-proxy mode: put SentryCove in front of an app written in any language.
+"""Reverse-proxy mode: put SignalMoat in front of an app written in any language.
 
-    client --> [TLS terminator] --> sentrycove proxy --> your app
+    client --> [TLS terminator] --> signalmoat proxy --> your app
 
 No change to the app is needed. Requests are screened by the same engine
 as the ASGI middleware, then streamed to the upstream app; responses are
 streamed back. The upstream receives two extra headers it can trust
 (client-supplied copies are always removed):
 
-    X-SentryCove-Agent:      e.g. "verified:example-agent", "automation:curl"
-    X-SentryCove-Client-IP:  the client address SentryCove resolved
+    X-SignalMoat-Agent:      e.g. "verified:example-agent", "automation:curl"
+    X-SignalMoat-Client-IP:  the client address SignalMoat resolved
 
 Limitations: HTTP/1.1 only towards the client, no TLS termination (run it
 behind your load balancer / Caddy / nginx), and WebSocket connections are
@@ -27,11 +27,11 @@ import httpx
 
 from .config import Config
 from .engine import Engine
-from .middleware import ASGIApp, Message, Receive, Scope, Send, SentryCove, respond_json
+from .middleware import ASGIApp, Message, Receive, Scope, Send, SignalMoat, respond_json
 
-log = logging.getLogger("sentrycove.proxy")
+log = logging.getLogger("signalmoat.proxy")
 
-HEALTH_PATH = "/_sentrycove/health"
+HEALTH_PATH = "/_signalmoat/health"
 
 HOP_BY_HOP = frozenset(
     {
@@ -137,7 +137,7 @@ class ReverseProxy:
             name = raw_name.decode("latin-1").lower()
             if name == "transfer-encoding":
                 has_body = True
-            if name in skip or name.startswith("x-sentrycove-"):
+            if name in skip or name.startswith("x-signalmoat-"):
                 continue
             if name == "host":
                 host = value
@@ -170,12 +170,12 @@ class ReverseProxy:
         if host and self._preserve_host:
             headers.append((b"host", host))
 
-        identity = state.get("sentrycove")
+        identity = state.get("signalmoat")
         if identity is not None:
-            headers.append((b"x-sentrycove-agent", identity.label.encode("latin-1", "replace")))
-        client_ip = state.get("sentrycove_client_ip")
+            headers.append((b"x-signalmoat-agent", identity.label.encode("latin-1", "replace")))
+        client_ip = state.get("signalmoat_client_ip")
         if client_ip:
-            headers.append((b"x-sentrycove-client-ip", str(client_ip).encode("ascii", "replace")))
+            headers.append((b"x-signalmoat-client-ip", str(client_ip).encode("ascii", "replace")))
         return headers, has_body
 
     @staticmethod
@@ -232,9 +232,9 @@ class ReverseProxy:
 
 
 class ProxyApp:
-    """SentryCove engine + reverse proxy + health endpoint + lifespan handling."""
+    """SignalMoat engine + reverse proxy + health endpoint + lifespan handling."""
 
-    def __init__(self, gate: SentryCove, proxy: ReverseProxy) -> None:
+    def __init__(self, gate: SignalMoat, proxy: ReverseProxy) -> None:
         self.gate = gate
         self.proxy = proxy
         self._warned_websocket = False
@@ -288,4 +288,4 @@ def create_proxy_app(
         client=client,
     )
     inner: ASGIApp = proxy
-    return ProxyApp(SentryCove(inner, engine=engine), proxy)
+    return ProxyApp(SignalMoat(inner, engine=engine), proxy)

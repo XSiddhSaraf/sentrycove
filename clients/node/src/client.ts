@@ -1,7 +1,7 @@
 /**
- * Client for the SentryCove decision API (`sentrycove sidecar`).
+ * Client for the SignalMoat decision API (`signalmoat sidecar`).
  *
- * The detection logic lives in one place -- the SentryCove engine -- and this
+ * The detection logic lives in one place -- the SignalMoat engine -- and this
  * package asks it for a verdict on each request. Zero runtime dependencies:
  * it uses the `fetch` built into Node 20+ and edge runtimes.
  */
@@ -22,9 +22,9 @@ export interface Decision {
   /** HTTP status to answer with when `action` is "block". */
   status: number | null;
   agent: AgentIdentity;
-  /** Client address as resolved by SentryCove, or null if the decision is a fallback. */
+  /** Client address as resolved by SignalMoat, or null if the decision is a fallback. */
   clientIp: string | null;
-  /** True when SentryCove wants the response status reported (login monitoring). */
+  /** True when SignalMoat wants the response status reported (login monitoring). */
   reportResponse: boolean;
   /** True when no real decision was made (decision API unreachable or errored). */
   degraded: boolean;
@@ -49,16 +49,16 @@ export interface ReportInput {
   status: number;
 }
 
-export interface SentryCoveOptions {
+export interface SignalMoatOptions {
   /** Base URL of the decision API, e.g. "http://127.0.0.1:8787". */
   url: string;
-  /** The shared secret the decision API was started with (SENTRYCOVE_API_TOKEN). */
+  /** The shared secret the decision API was started with (SIGNALMOAT_API_TOKEN). */
   token: string;
   /** How long to wait for a decision, in milliseconds. Default 500. */
   timeoutMs?: number;
   /**
    * What to do when the decision API cannot be reached or errors.
-   * `true` (default): let the request through, so SentryCove can never take your app down.
+   * `true` (default): let the request through, so SignalMoat can never take your app down.
    * `false`: answer 503.
    */
   failOpen?: boolean;
@@ -79,7 +79,7 @@ function defaultOnError(): (error: unknown) => void {
     if (now - lastLogged < 30_000) return;
     lastLogged = now;
     const reason = error instanceof Error ? error.message : String(error);
-    console.warn(`[sentrycove] decision API unavailable: ${reason}`);
+    console.warn(`[signalmoat] decision API unavailable: ${reason}`);
   };
 }
 
@@ -106,7 +106,7 @@ function parseDecision(body: unknown): Decision {
   };
 }
 
-export class SentryCoveClient {
+export class SignalMoatClient {
   readonly failOpen: boolean;
   private readonly baseUrl: string;
   private readonly authorization: string;
@@ -114,16 +114,16 @@ export class SentryCoveClient {
   private readonly onError: (error: unknown) => void;
   private readonly fetchImpl: typeof fetch;
 
-  constructor(options: SentryCoveOptions) {
+  constructor(options: SignalMoatOptions) {
     if (!options || typeof options.url !== "string" || !/^https?:\/\//i.test(options.url)) {
-      throw new TypeError('sentrycove: "url" must be the http(s) URL of the decision API, e.g. "http://127.0.0.1:8787"');
+      throw new TypeError('signalmoat: "url" must be the http(s) URL of the decision API, e.g. "http://127.0.0.1:8787"');
     }
     if (typeof options.token !== "string" || options.token.length < MIN_TOKEN_LENGTH) {
-      throw new TypeError(`sentrycove: "token" must be the decision API secret (at least ${MIN_TOKEN_LENGTH} characters)`);
+      throw new TypeError(`signalmoat: "token" must be the decision API secret (at least ${MIN_TOKEN_LENGTH} characters)`);
     }
     const timeoutMs = options.timeoutMs ?? 500;
     if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
-      throw new TypeError('sentrycove: "timeoutMs" must be a positive number');
+      throw new TypeError('signalmoat: "timeoutMs" must be a positive number');
     }
     this.baseUrl = options.url.replace(/\/+$/, "");
     this.authorization = `Bearer ${options.token}`;
@@ -132,7 +132,7 @@ export class SentryCoveClient {
     this.onError = options.onError ?? defaultOnError();
     this.fetchImpl = options.fetch ?? globalThis.fetch;
     if (typeof this.fetchImpl !== "function") {
-      throw new TypeError("sentrycove: no fetch implementation available (Node 20+ is required)");
+      throw new TypeError("signalmoat: no fetch implementation available (Node 20+ is required)");
     }
   }
 
@@ -153,7 +153,7 @@ export class SentryCoveClient {
   }
 
   /**
-   * Ask SentryCove for a verdict. Never rejects: if the decision API is
+   * Ask SignalMoat for a verdict. Never rejects: if the decision API is
    * unavailable the result is a `degraded` decision chosen by `failOpen`.
    */
   async inspect(input: InspectInput): Promise<Decision> {

@@ -6,9 +6,9 @@ import time
 
 import pytest
 
-from sentrycove.config import WebBotAuthConfig
-from sentrycove.engine import RequestInfo
-from sentrycove.webbotauth import (
+from signalmoat.config import WebBotAuthConfig
+from signalmoat.engine import RequestInfo
+from signalmoat.webbotauth import (
     KeyDirectory,
     WebBotAuthVerifier,
     jwk_thumbprint,

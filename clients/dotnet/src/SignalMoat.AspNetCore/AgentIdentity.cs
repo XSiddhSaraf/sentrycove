@@ -1,6 +1,6 @@
-namespace SentryCove.AspNetCore;
+namespace SignalMoat.AspNetCore;
 
-/// <summary>Who SentryCove thinks is making the request.</summary>
+/// <summary>Who SignalMoat thinks is making the request.</summary>
 /// <param name="Kind">
 /// <c>verified</c> (cryptographically proven AI agent), <c>declared</c> (User-Agent names a known bot;
 /// a claim, not proof), <c>automation</c> (HTTP library or headless browser) or <c>unclassified</c>.

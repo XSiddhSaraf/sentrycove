@@ -1,11 +1,11 @@
 {
-  "name": "sentrycove",
-  "version": "0.2.1",
-  "description": "SentryCove middleware for Express, Next.js and any Node server: verify AI agents, enforce per-agent policies, get early warning of attacks.",
+  "name": "signalmoat",
+  "version": "0.3.0",
+  "description": "SignalMoat middleware for Express, Next.js and any Node server: verify AI agents, enforce per-agent policies, get early warning of attacks.",
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/XSiddhSaraf/sentrycove.git",
+    "url": "git+https://github.com/XSiddhSaraf/signalmoat.git",
     "directory": "clients/node"
   },
   "keywords": [

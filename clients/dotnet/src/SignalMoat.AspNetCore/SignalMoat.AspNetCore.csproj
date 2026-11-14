@@ -6,15 +6,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <RootNamespace>SentryCove.AspNetCore</RootNamespace>
+    <RootNamespace>SignalMoat.AspNetCore</RootNamespace>
 
-    <PackageId>SentryCove.AspNetCore</PackageId>
-    <Version>0.2.1</Version>
+    <PackageId>SignalMoat.AspNetCore</PackageId>
+    <Version>0.3.0</Version>
     <Authors>Siddharth Saraf</Authors>
-    <Description>SentryCove middleware for ASP.NET Core: verify AI agents, enforce per-agent policies, and get early warning of probing, brute force and credential stuffing.</Description>
+    <Description>SignalMoat middleware for ASP.NET Core: verify AI agents, enforce per-agent policies, and get early warning of probing, brute force and credential stuffing.</Description>
     <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
-    <PackageProjectUrl>https://github.com/XSiddhSaraf/sentrycove</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/XSiddhSaraf/sentrycove</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/XSiddhSaraf/signalmoat</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/XSiddhSaraf/signalmoat</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>security;bot-detection;ai-agents;aspnetcore;middleware;web-bot-auth</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
@@ -23,7 +23,7 @@
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <None Include="../../README.md" Pack="true" PackagePath="/" />
-    <InternalsVisibleTo Include="SentryCove.AspNetCore.Tests" />
+    <InternalsVisibleTo Include="SignalMoat.AspNetCore.Tests" />
   </ItemGroup>
 
 </Project>

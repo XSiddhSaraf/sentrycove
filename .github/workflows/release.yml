@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/project/sentrycove/
+      url: https://pypi.org/project/signalmoat/
     permissions:
       id-token: write   # lets PyPI verify that this workflow is the publisher
     steps:
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: npm
-      url: https://www.npmjs.com/package/sentrycove
+      url: https://www.npmjs.com/package/signalmoat
     permissions:
       contents: read
       id-token: write   # lets npm verify that this workflow is the publisher
@@ -107,7 +107,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: nuget
-      url: https://www.nuget.org/packages/SentryCove.AspNetCore
+      url: https://www.nuget.org/packages/SignalMoat.AspNetCore
     permissions:
       id-token: write   # lets nuget.org verify that this workflow is the publisher
     steps:
@@ -126,7 +126,7 @@ jobs:
       - name: Push the package
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: dotnet nuget push nuget/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push nuget/*.nupkg --api-key "$NUGET_API_KEY" --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   image:
     name: Container image (${{ matrix.arch }})
@@ -151,7 +151,7 @@ jobs:
           ARCH: ${{ matrix.arch }}
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/signalmoat"
           version="${GITHUB_REF_NAME#v}"
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker build \
@@ -174,7 +174,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/signalmoat"
           version="${GITHUB_REF_NAME#v}"
           echo "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker buildx imagetools create -t "$image:$version" -t "$image:latest" \
@@ -200,5 +200,5 @@ jobs:
             gh release upload "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$GITHUB_REF_NAME" artifacts/* \
-              --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "SentryCove ${GITHUB_REF_NAME#v}"
+              --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes --title "SignalMoat ${GITHUB_REF_NAME#v}"
           fi

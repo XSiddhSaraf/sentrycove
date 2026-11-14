@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http.Features;
 
-namespace SentryCove.AspNetCore;
+namespace SignalMoat.AspNetCore;
 
-internal sealed class SentryCoveMiddleware
+internal sealed class SignalMoatMiddleware
 {
     internal static readonly object AgentItemKey = new();
 
@@ -10,9 +10,9 @@ internal sealed class SentryCoveMiddleware
     private const string UnavailableBody = "{\"error\": \"request could not be screened\"}";
 
     private readonly RequestDelegate _next;
-    private readonly SentryCoveClient _client;
+    private readonly SignalMoatClient _client;
 
-    public SentryCoveMiddleware(RequestDelegate next, SentryCoveClient client)
+    public SignalMoatMiddleware(RequestDelegate next, SignalMoatClient client)
     {
         _next = next;
         _client = client;
@@ -61,7 +61,7 @@ internal sealed class SentryCoveMiddleware
     }
 
     /// <summary>
-    /// The request target as the client sent it ("/path?query"), so SentryCove judges the same
+    /// The request target as the client sent it ("/path?query"), so SignalMoat judges the same
     /// bytes the server routed. Absolute-form targets fall back to the parsed path.
     /// </summary>
     private static string RequestTarget(HttpContext context)

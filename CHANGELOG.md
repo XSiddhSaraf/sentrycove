@@ -1,8 +1,30 @@
 # Changelog
 
-All notable changes to SentryCove are recorded here. The Python package, the
+All notable changes to SignalMoat (called SentryCove up to 0.2.1) are recorded here. The Python package, the
 Node package, the .NET package and the container image share one version
 number and are released together.
+
+## 0.3.0
+
+### Changed (breaking: renamed)
+SentryCove is now **SignalMoat**. nuget.org reserves package IDs beginning with
+"Sentry" for another publisher, so the .NET package could never be published
+under the old name, and the new name also avoids confusion with an existing brand.
+Behaviour is unchanged; only names differ:
+
+| Was | Now |
+|---|---|
+| `pip install sentrycove`, `import sentrycove`, class `SentryCove` | `pip install signalmoat`, `import signalmoat`, class `SignalMoat` |
+| `npm install sentrycove`, `sentrycove/express` | `npm install signalmoat`, `signalmoat/express` |
+| NuGet `SentryCove.AspNetCore`, `AddSentryCove`, `UseSentryCove`, `GetSentryCoveAgent` | `SignalMoat.AspNetCore`, `AddSignalMoat`, `UseSignalMoat`, `GetSignalMoatAgent` |
+| `ghcr.io/xsiddhsaraf/sentrycove` | `ghcr.io/xsiddhsaraf/signalmoat` |
+| `sentrycove` command, `sentrycove.yaml` | `signalmoat` command, `signalmoat.yaml` |
+| `SENTRYCOVE_*` environment variables | `SIGNALMOAT_*` |
+| `X-SentryCove-Agent`, `X-SentryCove-Client-IP` headers | `X-SignalMoat-Agent`, `X-SignalMoat-Client-IP` |
+| `/_sentrycove/health`, `request.state.sentrycove`, `req.sentrycove` | `/_signalmoat/health`, `request.state.signalmoat`, `req.signalmoat` |
+
+The old `sentrycove` packages on PyPI and npm (0.2.0, 0.2.1) remain available but
+receive no further updates.
 
 ## 0.2.1
 

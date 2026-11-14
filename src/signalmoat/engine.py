@@ -1,10 +1,10 @@
-"""The SentryCove decision engine.
+"""The SignalMoat decision engine.
 
 One engine, three ways to put it in front of an app:
 
-* ``sentrycove.SentryCove``   -- ASGI middleware (FastAPI, Starlette, ...)
-* ``sentrycove proxy``        -- reverse proxy in front of an app in any language
-* ``sentrycove sidecar``      -- decision API used by the Node and ASP.NET middleware
+* ``signalmoat.SignalMoat``   -- ASGI middleware (FastAPI, Starlette, ...)
+* ``signalmoat proxy``        -- reverse proxy in front of an app in any language
+* ``signalmoat sidecar``      -- decision API used by the Node and ASP.NET middleware
 
 Pipeline per request:
     banned IP? -> honeypot? -> identify agent (Web Bot Auth / User-Agent)
@@ -38,7 +38,7 @@ from .webbotauth import (
     normalize_authority,
 )
 
-log = logging.getLogger("sentrycove")
+log = logging.getLogger("signalmoat")
 
 UNKNOWN_IP = "unknown"
 _HIGH_RISK_SIGNATURE_FAILURES = {"bad signature", "replayed nonce"}

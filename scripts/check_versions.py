@@ -28,12 +28,12 @@ def _match(path: Path, pattern: str) -> str:
 def read_versions() -> dict[str, str]:
     return {
         "pyproject.toml": _match(ROOT / "pyproject.toml", r'^version\s*=\s*"([^"]+)"'),
-        "src/sentrycove/__init__.py": _match(ROOT / "src/sentrycove/__init__.py", r'^__version__\s*=\s*"([^"]+)"'),
+        "src/signalmoat/__init__.py": _match(ROOT / "src/signalmoat/__init__.py", r'^__version__\s*=\s*"([^"]+)"'),
         "clients/node/package.json": json.loads((ROOT / "clients/node/package.json").read_text(encoding="utf-8"))[
             "version"
         ],
         "clients/dotnet (csproj)": _match(
-            ROOT / "clients/dotnet/src/SentryCove.AspNetCore/SentryCove.AspNetCore.csproj",
+            ROOT / "clients/dotnet/src/SignalMoat.AspNetCore/SignalMoat.AspNetCore.csproj",
             r"<Version>([^<]+)</Version>",
         ),
     }

@@ -3,9 +3,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 
-namespace SentryCove.AspNetCore.Tests;
+namespace SignalMoat.AspNetCore.Tests;
 
-/// <summary>Runs the real SentryCove decision API (<c>python -m sentrycove sidecar</c>) for the tests.</summary>
+/// <summary>Runs the real SignalMoat decision API (<c>python -m signalmoat sidecar</c>) for the tests.</summary>
 internal sealed class Sidecar : IAsyncDisposable
 {
     public const string Token = "dotnet-test-token-0123456789abcdef";
@@ -58,23 +58,23 @@ internal sealed class Sidecar : IAsyncDisposable
 
     public static async Task<Sidecar> StartAsync()
     {
-        var directory = Directory.CreateTempSubdirectory("sentrycove-").FullName;
+        var directory = Directory.CreateTempSubdirectory("signalmoat-").FullName;
         var policyPath = Path.Combine(directory, "policy.yaml");
         await File.WriteAllTextAsync(policyPath, Policy); // JSON is valid YAML
 
         var port = FreePort();
-        var info = new ProcessStartInfo(Environment.GetEnvironmentVariable("SENTRYCOVE_PYTHON") ?? "python3")
+        var info = new ProcessStartInfo(Environment.GetEnvironmentVariable("SIGNALMOAT_PYTHON") ?? "python3")
         {
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             UseShellExecute = false,
         };
-        foreach (var argument in new[] { "-m", "sentrycove", "sidecar", "--config", policyPath, "--port", port.ToString() })
+        foreach (var argument in new[] { "-m", "signalmoat", "sidecar", "--config", policyPath, "--port", port.ToString() })
         {
             info.ArgumentList.Add(argument);
         }
 
-        info.Environment["SENTRYCOVE_API_TOKEN"] = Token;
+        info.Environment["SIGNALMOAT_API_TOKEN"] = Token;
         var process = Process.Start(info) ?? throw new InvalidOperationException("could not start python");
         var sidecar = new Sidecar(process, new Uri($"http://127.0.0.1:{port}"), directory);
         process.OutputDataReceived += (_, e) => sidecar.Append(e.Data);
@@ -93,7 +93,7 @@ internal sealed class Sidecar : IAsyncDisposable
 
             try
             {
-                using var response = await http.GetAsync(new Uri(sidecar.Url, "/_sentrycove/health"));
+                using var response = await http.GetAsync(new Uri(sidecar.Url, "/_signalmoat/health"));
                 if (response.IsSuccessStatusCode)
                 {
                     return sidecar;
