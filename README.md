@@ -115,6 +115,99 @@ See [`clients/node`](https://github.com/XSiddhSaraf/signalmoat/tree/main/clients
 | Brute force | N failed logins from one IP in a window | **High** alert |
 | Credential stuffing | Site-wide spike of failed logins | **Critical** alert |
 | Session hijack | Session cookie reused from a different browser/device | **High** alert |
+| Fake browser | User-Agent claims a browser, JA4 TLS fingerprint says HTTP library ([JA4](#ja4-tls-fingerprints)) | **Medium** alert |
+| Known-bad TLS client | Rule with a `ja4` pattern matches the client's TLS fingerprint | Alert; block in `enforce` |
+
+## Several workers or hosts: shared state in Redis
+
+By default each SignalMoat process keeps its own bans, counters, used
+signature nonces and session fingerprints. With several workers or hosts,
+point them all at one Redis (or Valkey) server so a ban, a brute-force count
+or a replayed nonce is seen everywhere:
+
+```yaml
+state:
+  backend: redis                     # default: memory
+  redis_url_env: SIGNALMOAT_REDIS_URL  # env var holding redis:// or rediss:// URL (may include a password)
+  key_prefix: "signalmoat:"
+  timeout_seconds: 0.25
+```
+
+`pip install "signalmoat[redis]"` (the container image already includes it).
+Every update is one atomic server-side script, so concurrent workers never
+lose a count or accept a nonce twice; every key expires. Alerts raised by
+several workers for the same event are sent once. If Redis cannot be reached,
+SignalMoat stops trying for a few seconds (no request waits on a dead server)
+and `fail_open` decides what happens to traffic.
+
+## WebSockets
+
+WebSocket connections are screened like any other request: the opening
+handshake goes through the same rules, honeypots and bans, and a refused
+handshake never reaches your app. The reverse proxy then relays messages in
+both directions (text, binary, subprotocols and close codes are preserved);
+the ASGI middleware screens FastAPI/Starlette WebSocket endpoints. In
+`enforce` mode an open connection is closed (code 1008) if its client IP is
+banned later, e.g. after it hits a honeypot.
+
+```yaml
+websocket:
+  enabled: true              # false refuses all WebSocket handshakes
+  ban_recheck_seconds: 15    # how often open connections are re-checked
+  max_message_bytes: 1048576
+```
+
+## JA4 TLS fingerprints
+
+A [JA4](https://github.com/FoxIO-LLC/ja4) fingerprint describes the client's
+TLS handshake, which is much harder to fake than a User-Agent. SignalMoat
+does not terminate TLS, so your TLS terminator computes JA4 and passes it in
+a header (Cloudflare: the `cf-ja4` managed header; HAProxy or nginx with a
+JA4 module: a header you set). Configure that proxy to **overwrite** the
+header, and tell SignalMoat a trusted proxy is in front — otherwise a client
+could send the header itself:
+
+```yaml
+trusted_proxy_hops: 1        # required for ja4
+ja4:
+  enabled: true
+  header: cf-ja4
+  alert_on_browser_mismatch: true
+rules:
+  - name: block-known-scraper-tls
+    ja4: ["t13d190900_9dc949149365_*"]   # '*' wildcard
+    action: block
+    severity: high
+```
+
+Malformed values are ignored. The browser-mismatch alert only fires on
+combinations real browsers never produce (no ALPN over TCP, TLS below 1.2).
+
+## AI alert triage (optional)
+
+Important alerts can arrive with a short, plain-language note — what
+happened, how bad it is, what to do — written by an LLM:
+
+```yaml
+alerts:
+  triage:
+    enabled: true
+    provider: anthropic          # or openai (any OpenAI-compatible API, incl. Ollama / vLLM)
+    model: claude-haiku-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    min_severity: high
+    max_per_hour: 60             # cost cap
+    timeout_seconds: 8
+    # base_url: http://127.0.0.1:11434/v1   # local model; http only on localhost
+```
+
+The note is **advisory**: triage never blocks, bans or changes an alert's
+severity or routing, and if the model is slow, down, over budget or answers
+oddly, the alert is delivered unchanged. Alert fields written by the client
+(path, User-Agent, ...) reach the model only as quoted, length-limited data it
+is told not to obey; its answer must be a small JSON object, and links and
+chat mentions are removed from it. Only the client's network (/24 or /48) is
+sent unless you set `include_client_ip: true`.
 
 ## Rollout: monitor → enforce
 
@@ -141,7 +234,8 @@ and .NET middleware) if you prefer requests to be refused instead.
   everyone at once.
 - **Decision API is authenticated**: every call needs a bearer token, compared
   in constant time; it binds to localhost by default.
-- **Bounded memory**: every tracker is size-capped and expires.
+- **Bounded memory**: every tracker is size-capped and expires — in Redis too,
+  where attacker-supplied keys (e.g. nonces) are hashed to a fixed length.
 - **Privacy**: session tokens are stored only as truncated SHA-256 hashes; raw
   tokens never appear in alerts. Webhook URLs come from environment variables.
 - **Strict config**: unknown keys are rejected so a typo cannot silently
@@ -149,12 +243,14 @@ and .NET middleware) if you prefer requests to be refused instead.
 
 ## Limitations (honest list)
 
-- State is **per process**. With several workers or hosts, counters and bans
-  are not shared (a shared Redis backend is planned). Run one SignalMoat
-  process per app for now.
-- **Reverse proxy**: no WebSocket support yet (connections are refused), no
-  TLS termination (run it behind your load balancer, Caddy or nginx), and it
-  is a single Python process — fine for small and medium sites, not a CDN.
+- State is **per process** unless you enable the [Redis backend](#several-workers-or-hosts-shared-state-in-redis).
+- **Reverse proxy**: no TLS termination (run it behind your load balancer,
+  Caddy or nginx), and it is a single Python process per worker — fine for
+  small and medium sites, not a CDN.
+- **WebSockets** are screened by the reverse proxy and the ASGI middleware.
+  The Node and .NET middleware do not see WebSocket upgrades yet; put the
+  reverse proxy in front if you need them screened.
+- **JA4** needs a TLS terminator that computes it; SignalMoat only reads it.
 - **Next.js / edge runtimes** cannot see the response status, so failed-login
   monitoring needs the Express middleware or the reverse proxy; see
   [`clients/node`](https://github.com/XSiddhSaraf/signalmoat/tree/main/clients/node) for how the client address is determined.
@@ -169,10 +265,10 @@ and .NET middleware) if you prefer requests to be refused instead.
 
 ## Roadmap
 
-- Publish to PyPI, npm, NuGet and a container registry
-- Shared state via Redis; WebSocket proxying; JA4 TLS fingerprints
-- LLM-assisted alert triage: plain-language "what happened, how bad, what to do"
-- Optional hosted console: fleet view, shared threat intelligence, team alert routing
+- [x] ~~Publish to PyPI, npm, NuGet and a container registry~~ — **✅ Completed**
+- [x] ~~Shared state via Redis; WebSocket proxying; JA4 TLS fingerprints~~ — **✅ Completed**
+- [x] ~~LLM-assisted alert triage: plain-language "what happened, how bad, what to do"~~ — **✅ Completed**
+- [ ] Optional hosted console: fleet view, shared threat intelligence, team alert routing
 
 ## Repository layout
 

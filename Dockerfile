@@ -14,7 +14,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /opt/signalmoat
 COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
-RUN pip install ".[server]" \
+RUN pip install ".[server,redis]" \
     && useradd --system --uid 10001 --no-create-home signalmoat
 COPY examples/signalmoat.yaml /etc/signalmoat/signalmoat.yaml
 

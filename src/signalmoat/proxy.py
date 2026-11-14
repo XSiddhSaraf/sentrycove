@@ -10,13 +10,17 @@ streamed back. The upstream receives two extra headers it can trust
     X-SignalMoat-Agent:      e.g. "verified:example-agent", "automation:curl"
     X-SignalMoat-Client-IP:  the client address SignalMoat resolved
 
-Limitations: HTTP/1.1 only towards the client, no TLS termination (run it
-behind your load balancer / Caddy / nginx), and WebSocket connections are
-refused rather than proxied.
+WebSocket connections are proxied too: the opening handshake is screened
+like any request, then messages are relayed in both directions. A connection
+is closed (code 1008) if its client IP is banned while it is open.
+
+Limitations: HTTP/1.1 only towards the client and no TLS termination (run it
+behind your load balancer / Caddy / nginx).
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -73,8 +77,23 @@ def _validate_upstream(upstream: str) -> str:
     return f"{parts.scheme}://{parts.netloc}"
 
 
+# Handshake headers the WebSocket client library writes itself.
+_WS_OWN_HEADERS = frozenset(
+    {"host", "sec-websocket-key", "sec-websocket-version", "sec-websocket-extensions", "sec-websocket-protocol"}
+)
+_WS_CLOSE_UNSENDABLE = {1005, 1006, 1015}  # reserved: may never appear in a close frame
+
+
+def _ws_close_code(code: Optional[int]) -> int:
+    if code is None or code == 1005:
+        return 1000
+    if code in _WS_CLOSE_UNSENDABLE or not (1000 <= code <= 4999):
+        return 1011
+    return code
+
+
 class ReverseProxy:
-    """ASGI app that forwards every HTTP request to one upstream origin."""
+    """ASGI app that forwards every HTTP request (and WebSocket) to one upstream origin."""
 
     def __init__(
         self,
@@ -85,8 +104,11 @@ class ReverseProxy:
         connect_timeout: float = 5.0,
         read_timeout: float = 60.0,
         client: Optional[httpx.AsyncClient] = None,
+        websocket_max_message_bytes: int = 1_048_576,
     ) -> None:
         self._base = _validate_upstream(upstream)
+        self._connect_timeout = connect_timeout
+        self._ws_max_size = websocket_max_message_bytes
         self._preserve_host = preserve_host
         self._trusted_hops = trusted_proxy_hops
         self._timeout = httpx.Timeout(
@@ -193,8 +215,11 @@ class ReverseProxy:
     # -- ASGI ----------------------------------------------------------------
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "websocket":
+            await self._websocket(scope, receive, send)
+            return
         if scope["type"] != "http":
-            raise RuntimeError("ReverseProxy only handles HTTP scopes")
+            raise RuntimeError("ReverseProxy only handles HTTP and WebSocket scopes")
         headers, has_body = self._upstream_headers(scope)
         request = httpx.Request(
             scope["method"],
@@ -230,6 +255,107 @@ class ReverseProxy:
         finally:
             await response.aclose()
 
+    # -- WebSocket -----------------------------------------------------------
+
+    async def _websocket(self, scope: Scope, receive: Receive, send: Send) -> None:
+        """Open the same WebSocket on the upstream, then relay messages both ways."""
+        from websockets.asyncio.client import ClientConnection, connect
+        from websockets.exceptions import ConnectionClosed, InvalidStatus, WebSocketException
+
+        first = await receive()
+        if first["type"] != "websocket.connect":
+            return
+
+        headers, _ = self._upstream_headers(scope)
+        host: Optional[str] = None
+        forward: list[tuple[str, str]] = []
+        for raw_name, value in headers:
+            name = raw_name.decode("latin-1").lower()
+            if name == "host":
+                host = value.decode("latin-1")
+            elif name not in _WS_OWN_HEADERS:
+                forward.append((name, value.decode("latin-1")))
+        url = "ws" + self._target_url(scope)[len("http") :]  # http(s)://... -> ws(s)://...
+        subprotocols = list(scope.get("subprotocols") or []) or None
+
+        class _Upstream(ClientConnection):
+            """Sends the client's Host header (when preserved) instead of the upstream's own."""
+
+            async def handshake(self, *args: Any, **kwargs: Any) -> None:
+                build = self.protocol.connect
+
+                def connect_with_host() -> Any:
+                    request = build()
+                    if host:
+                        del request.headers["Host"]
+                        request.headers["Host"] = host
+                    return request
+
+                self.protocol.connect = connect_with_host  # type: ignore[method-assign]
+                await super().handshake(*args, **kwargs)
+
+        try:
+            upstream = await connect(
+                url,
+                additional_headers=forward,
+                subprotocols=subprotocols,
+                user_agent_header=None,  # the client's own User-Agent is forwarded
+                proxy=None,  # reach the upstream directly, never via HTTP(S)_PROXY
+                open_timeout=self._connect_timeout,
+                max_size=self._ws_max_size,
+                create_connection=_Upstream,
+            )
+        except InvalidStatus as exc:
+            log.info("upstream refused websocket %s: HTTP %s", scope.get("path"), exc.response.status_code)
+            await send({"type": "websocket.close", "code": 1008})
+            return
+        except (OSError, asyncio.TimeoutError, WebSocketException) as exc:
+            log.warning("upstream websocket unreachable: %s", exc)
+            await send({"type": "websocket.close", "code": 1011})
+            return
+
+        async with upstream:
+            await send({"type": "websocket.accept", "subprotocol": upstream.subprotocol})
+
+            async def client_to_upstream() -> None:
+                while True:
+                    message = await receive()
+                    if message["type"] == "websocket.disconnect":
+                        await upstream.close(_ws_close_code(message.get("code")))
+                        return
+                    if message["type"] != "websocket.receive":
+                        continue
+                    if message.get("bytes") is not None:
+                        await upstream.send(message["bytes"])
+                    elif message.get("text") is not None:
+                        await upstream.send(message["text"])
+
+            async def upstream_to_client() -> None:
+                code, reason = 1000, ""
+                try:
+                    async for data in upstream:
+                        if isinstance(data, bytes):
+                            await send({"type": "websocket.send", "bytes": data})
+                        else:
+                            await send({"type": "websocket.send", "text": data})
+                except ConnectionClosed:
+                    pass
+                if upstream.close_code is not None:
+                    code, reason = upstream.close_code, upstream.close_reason or ""
+                await send({"type": "websocket.close", "code": _ws_close_code(code), "reason": reason})
+
+            tasks = {asyncio.ensure_future(client_to_upstream()), asyncio.ensure_future(upstream_to_client())}
+            try:
+                done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            finally:
+                for task in tasks:
+                    task.cancel()
+                await asyncio.gather(*tasks, return_exceptions=True)
+            for task in done:
+                error = task.exception()
+                if error is not None and not isinstance(error, ConnectionClosed):
+                    log.warning("websocket relay ended with an error: %s", error)
+
 
 class ProxyApp:
     """SignalMoat engine + reverse proxy + health endpoint + lifespan handling."""
@@ -237,7 +363,6 @@ class ProxyApp:
     def __init__(self, gate: SignalMoat, proxy: ReverseProxy) -> None:
         self.gate = gate
         self.proxy = proxy
-        self._warned_websocket = False
 
     async def aclose(self) -> None:
         await self.proxy.aclose()
@@ -247,12 +372,6 @@ class ProxyApp:
         kind = scope["type"]
         if kind == "lifespan":
             await run_lifespan(receive, send, self.aclose)
-        elif kind == "websocket":
-            if not self._warned_websocket:
-                self._warned_websocket = True
-                log.warning("WebSocket connections are not proxied yet; refusing %s", scope.get("path"))
-            await receive()
-            await send({"type": "websocket.close", "code": 1008})
         elif kind == "http" and scope.get("path") == HEALTH_PATH:
             await respond_json(send, 200, {"status": "ok", "mode": self.gate.config.mode})
         else:
@@ -286,6 +405,7 @@ def create_proxy_app(
         preserve_host=preserve_host,
         trusted_proxy_hops=engine.config.trusted_proxy_hops,
         client=client,
+        websocket_max_message_bytes=engine.config.websocket.max_message_bytes,
     )
     inner: ASGIApp = proxy
     return ProxyApp(SignalMoat(inner, engine=engine), proxy)
