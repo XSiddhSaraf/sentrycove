@@ -3,9 +3,9 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Microsoft.Extensions.Options;
-using SentryCove.AspNetCore;
+using SignalMoat.AspNetCore;
 
-namespace SentryCove.AspNetCore.Tests;
+namespace SignalMoat.AspNetCore.Tests;
 
 internal static class Program
 {
@@ -138,8 +138,8 @@ internal static class Program
 
                 var builder = WebApplication.CreateBuilder();
                 await using var bare = builder.Build();
-                var missing = Throws<InvalidOperationException>(() => bare.UseSentryCove());
-                True(missing.Message.Contains("AddSentryCove"), missing.Message);
+                var missing = Throws<InvalidOperationException>(() => bare.UseSignalMoat());
+                True(missing.Message.Contains("AddSignalMoat"), missing.Message);
             }),
         };
 
@@ -162,22 +162,22 @@ internal static class Program
         return failed == 0 ? 0 : 1;
     }
 
-    private static void Configure(SentryCoveOptions options, Uri url)
+    private static void Configure(SignalMoatOptions options, Uri url)
     {
         options.Url = url;
         options.Token = Sidecar.Token;
     }
 
-    private static async Task<TestApp> StartAppAsync(Action<SentryCoveOptions> configure)
+    private static async Task<TestApp> StartAppAsync(Action<SignalMoatOptions> configure)
     {
         var builder = WebApplication.CreateBuilder();
         builder.Logging.ClearProviders();
         builder.WebHost.UseUrls("http://127.0.0.1:0");
-        builder.Services.AddSentryCove(configure);
+        builder.Services.AddSignalMoat(configure);
 
         var app = builder.Build();
-        app.UseSentryCove();
-        app.MapGet("/", (HttpContext context) => context.GetSentryCoveAgent()?.Label ?? "middleware did not run");
+        app.UseSignalMoat();
+        app.MapGet("/", (HttpContext context) => context.GetSignalMoatAgent()?.Label ?? "middleware did not run");
         app.MapPost("/contact", () => "received");
         app.MapPost("/login", () => Results.Unauthorized());
         app.MapGet("/.env", () => "SECRET=should-never-be-served");

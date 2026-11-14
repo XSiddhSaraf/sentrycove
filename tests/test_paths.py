@@ -1,6 +1,6 @@
 import pytest
 
-from sentrycove.paths import normalize_match_path, path_matches
+from signalmoat.paths import normalize_match_path, path_matches
 
 
 @pytest.mark.parametrize(

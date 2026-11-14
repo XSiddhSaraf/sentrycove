@@ -1,13 +1,13 @@
-# SentryCove policy — start in monitor mode, watch the alerts for a week,
+# SignalMoat policy — start in monitor mode, watch the alerts for a week,
 # then switch to enforce.
 version: 1
 mode: monitor            # monitor = alert only | enforce = also block
-fail_open: true          # if SentryCove itself errors, let traffic through
+fail_open: true          # if SignalMoat itself errors, let traffic through
 trusted_proxy_hops: 0    # set to 1 behind nginx / a load balancer, 2 behind CDN + LB
 
 web_bot_auth:
   enabled: true
-  # Signers whose key directories SentryCove may fetch. Only these origins
+  # Signers whose key directories SignalMoat may fetch. Only these origins
   # are ever contacted. Check each provider's documentation for the exact
   # Signature-Agent origin it uses before adding it here.
   trusted_agents: []
@@ -64,8 +64,8 @@ alerts:
       min_severity: low
     # URLs come from environment variables so secrets never sit in this file.
     # - type: slack
-    #   url_env: SENTRYCOVE_SLACK_WEBHOOK
+    #   url_env: SIGNALMOAT_SLACK_WEBHOOK
     #   min_severity: high
     # - type: webhook
-    #   url_env: SENTRYCOVE_WEBHOOK_URL
+    #   url_env: SIGNALMOAT_WEBHOOK_URL
     #   min_severity: medium

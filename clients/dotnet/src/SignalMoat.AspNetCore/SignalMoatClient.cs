@@ -4,7 +4,7 @@ using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace SentryCove.AspNetCore;
+namespace SignalMoat.AspNetCore;
 
 internal sealed record InspectPayload(
     string Method,
@@ -48,10 +48,10 @@ internal sealed record Decision(
     bool ReportResponse,
     bool Degraded);
 
-/// <summary>Talks to the SentryCove decision API (<c>sentrycove sidecar</c>).</summary>
-internal sealed class SentryCoveClient
+/// <summary>Talks to the SignalMoat decision API (<c>signalmoat sidecar</c>).</summary>
+internal sealed class SignalMoatClient
 {
-    internal const string HttpClientName = "SentryCove";
+    internal const string HttpClientName = "SignalMoat";
 
     private static readonly JsonSerializerOptions Json = new()
     {
@@ -65,14 +65,14 @@ internal sealed class SentryCoveClient
     };
 
     private readonly IHttpClientFactory _factory;
-    private readonly SentryCoveOptions _options;
-    private readonly ILogger<SentryCoveClient> _logger;
+    private readonly SignalMoatOptions _options;
+    private readonly ILogger<SignalMoatClient> _logger;
     private long _lastWarningTicks;
 
-    public SentryCoveClient(
+    public SignalMoatClient(
         IHttpClientFactory factory,
-        IOptions<SentryCoveOptions> options,
-        ILogger<SentryCoveClient> logger)
+        IOptions<SignalMoatOptions> options,
+        ILogger<SignalMoatClient> logger)
     {
         _factory = factory;
         _options = options.Value;
@@ -81,7 +81,7 @@ internal sealed class SentryCoveClient
 
     /// <summary>
     /// Ask for a verdict. Never throws for decision API problems: the result is then a
-    /// degraded decision chosen by <see cref="SentryCoveOptions.FailOpen"/>.
+    /// degraded decision chosen by <see cref="SignalMoatOptions.FailOpen"/>.
     /// Throws <see cref="OperationCanceledException"/> only when the caller's own request was aborted.
     /// </summary>
     public async Task<Decision> InspectAsync(InspectPayload payload, CancellationToken requestAborted)
@@ -171,7 +171,7 @@ internal sealed class SentryCoveClient
 
         if (Interlocked.CompareExchange(ref _lastWarningTicks, now, last) == last)
         {
-            _logger.LogWarning("SentryCove decision API unavailable: {Reason}", ex.Message);
+            _logger.LogWarning("SignalMoat decision API unavailable: {Reason}", ex.Message);
         }
     }
 }

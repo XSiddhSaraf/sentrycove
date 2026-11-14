@@ -16,7 +16,7 @@ import httpx
 from .config import AlertsConfig, SinkConfig
 from .store import TTLCache
 
-log = logging.getLogger("sentrycove.alerts")
+log = logging.getLogger("signalmoat.alerts")
 
 SEVERITY_ORDER = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
@@ -51,7 +51,7 @@ class LogSink:
 
     async def send(self, alert: Alert) -> None:
         level = logging.WARNING if SEVERITY_ORDER[alert.severity] >= 2 else logging.INFO
-        self._log.log(level, "sentrycove alert %s", json.dumps(alert.to_dict(), sort_keys=True))
+        self._log.log(level, "signalmoat alert %s", json.dumps(alert.to_dict(), sort_keys=True))
 
     async def aclose(self) -> None:
         return None

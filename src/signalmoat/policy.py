@@ -20,7 +20,7 @@ ALLOW_DEFAULT = Decision("allow")
 
 
 def evaluate(rules: list[Rule], identity: AgentIdentity, method: str, path: str) -> Decision:
-    """``path`` must be canonical (see :func:`sentrycove.paths.normalize_match_path`)."""
+    """``path`` must be canonical (see :func:`signalmoat.paths.normalize_match_path`)."""
     method = method.upper()
     for rule in rules:
         if "*" not in rule.methods and method not in rule.methods:

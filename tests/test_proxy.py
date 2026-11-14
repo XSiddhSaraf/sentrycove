@@ -6,8 +6,8 @@ import socket
 import httpx
 import pytest
 
-from sentrycove.engine import Engine
-from sentrycove.proxy import HEALTH_PATH, ReverseProxy, create_proxy_app
+from signalmoat.engine import Engine
+from signalmoat.proxy import HEALTH_PATH, ReverseProxy, create_proxy_app
 
 from ._servers import ServerThread, Upstream
 from .conftest import RecordingDispatcher
@@ -67,7 +67,7 @@ def test_request_is_forwarded_with_trustworthy_headers(stack):
         headers={
             "X-Forwarded-For": "6.6.6.6",  # forged by the client
             "X-Real-IP": "6.6.6.6",
-            "X-SentryCove-Agent": "verified:forged",
+            "X-SignalMoat-Agent": "verified:forged",
             "Connection": "keep-alive, X-Drop-Me",
             "X-Drop-Me": "1",
             "Accept-Encoding": "identity",
@@ -81,8 +81,8 @@ def test_request_is_forwarded_with_trustworthy_headers(stack):
     assert seen["x-forwarded-for"] == ["127.0.0.1"]  # forged value dropped, real peer set
     assert "x-real-ip" not in seen
     assert seen["x-forwarded-proto"] == ["http"]
-    assert seen["x-sentrycove-agent"] == ["unclassified"]  # forged value replaced
-    assert seen["x-sentrycove-client-ip"] == ["127.0.0.1"]
+    assert seen["x-signalmoat-agent"] == ["unclassified"]  # forged value replaced
+    assert seen["x-signalmoat-client-ip"] == ["127.0.0.1"]
     assert "x-drop-me" not in seen  # named in Connection => hop-by-hop
     assert seen["accept-encoding"] == ["identity"]  # nothing added on the client's behalf
     assert seen["user-agent"] == [BROWSER_UA]
@@ -96,7 +96,7 @@ def test_forwarding_chain_is_extended_behind_a_trusted_proxy(stack):
     seen = stack.headers_seen(r)
     assert seen["x-forwarded-for"] == ["198.51.100.1, 203.0.113.9, 127.0.0.1"]
     assert seen["x-forwarded-proto"] == ["https"]
-    assert seen["x-sentrycove-client-ip"] == ["203.0.113.9"]
+    assert seen["x-signalmoat-client-ip"] == ["203.0.113.9"]
 
 
 def test_large_and_chunked_bodies_arrive_intact(stack):

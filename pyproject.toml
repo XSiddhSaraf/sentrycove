@@ -3,8 +3,8 @@ requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
-name = "sentrycove"
-version = "0.2.1"
+name = "signalmoat"
+version = "0.3.0"
 description = "Open-source agent firewall and early-warning layer for web apps: verify AI agents, enforce per-agent policies, detect hijacked sessions and credential stuffing."
 readme = "README.md"
 license = "Apache-2.0"
@@ -40,18 +40,18 @@ dev = [
 ]
 
 [project.scripts]
-sentrycove = "sentrycove.cli:main"
+signalmoat = "signalmoat.cli:main"
 
 [project.urls]
-Repository = "https://github.com/XSiddhSaraf/sentrycove"
-Issues = "https://github.com/XSiddhSaraf/sentrycove/issues"
-Changelog = "https://github.com/XSiddhSaraf/sentrycove/blob/main/CHANGELOG.md"
+Repository = "https://github.com/XSiddhSaraf/signalmoat"
+Issues = "https://github.com/XSiddhSaraf/signalmoat/issues"
+Changelog = "https://github.com/XSiddhSaraf/signalmoat/blob/main/CHANGELOG.md"
 
 [tool.hatch.build.targets.sdist]
 include = ["/src", "/tests", "/examples", "/scripts", "/README.md", "/LICENSE", "/CHANGELOG.md"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/sentrycove"]
+packages = ["src/signalmoat"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

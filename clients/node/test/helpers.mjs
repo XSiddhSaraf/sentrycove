@@ -1,4 +1,4 @@
-// Starts the real SentryCove decision API (Python) so the middleware is tested
+// Starts the real SignalMoat decision API (Python) so the middleware is tested
 // against the actual engine rather than a mock.
 import { spawn } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
@@ -44,13 +44,13 @@ export function listen(server) {
 }
 
 export async function startSidecar(policy = POLICY) {
-  const dir = mkdtempSync(join(tmpdir(), "sentrycove-"));
+  const dir = mkdtempSync(join(tmpdir(), "signalmoat-"));
   const configPath = join(dir, "policy.yaml");
   writeFileSync(configPath, JSON.stringify(policy)); // JSON is valid YAML
   const port = await freePort();
-  const python = process.env.SENTRYCOVE_PYTHON ?? "python3";
-  const child = spawn(python, ["-m", "sentrycove", "sidecar", "--config", configPath, "--port", String(port)], {
-    env: { ...process.env, SENTRYCOVE_API_TOKEN: TOKEN },
+  const python = process.env.SIGNALMOAT_PYTHON ?? "python3";
+  const child = spawn(python, ["-m", "signalmoat", "sidecar", "--config", configPath, "--port", String(port)], {
+    env: { ...process.env, SIGNALMOAT_API_TOKEN: TOKEN },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let log = "";
@@ -61,7 +61,7 @@ export async function startSidecar(policy = POLICY) {
   for (;;) {
     if (child.exitCode !== null) throw new Error(`sidecar exited early:\n${log}`);
     try {
-      const r = await fetch(`${url}/_sentrycove/health`);
+      const r = await fetch(`${url}/_signalmoat/health`);
       if (r.ok) break;
     } catch {
       /* not up yet */

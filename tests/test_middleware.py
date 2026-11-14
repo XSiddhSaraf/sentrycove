@@ -6,7 +6,7 @@ import pytest
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 
-from sentrycove import SentryCove
+from signalmoat import SignalMoat
 
 from .conftest import AGENT_ORIGIN, FakeFetcher, RecordingDispatcher, sign_headers
 
@@ -46,7 +46,7 @@ def make_app(config: dict, fetcher: Optional[FakeFetcher] = None):
 
     @app.get("/")
     def home(request: Request):
-        identity = request.state.sentrycove
+        identity = request.state.signalmoat
         return {"agent": identity.label}
 
     @app.post("/contact")
@@ -61,7 +61,7 @@ def make_app(config: dict, fetcher: Optional[FakeFetcher] = None):
     def login(request: Request):
         raise HTTPException(status_code=401)
 
-    app.add_middleware(SentryCove, config=config, dispatcher=dispatcher, key_fetcher=fetcher or FakeFetcher())
+    app.add_middleware(SignalMoat, config=config, dispatcher=dispatcher, key_fetcher=fetcher or FakeFetcher())
     return app, dispatcher
 
 
@@ -173,7 +173,7 @@ def test_fail_open_on_internal_error(monkeypatch):
     def explode(*args, **kwargs):
         raise RuntimeError("bug")
 
-    monkeypatch.setattr("sentrycove.engine.classify", explode)
+    monkeypatch.setattr("signalmoat.engine.classify", explode)
     assert client.get("/", headers={"User-Agent": BROWSER_UA}).status_code == 200
 
 
@@ -184,7 +184,7 @@ def test_fail_closed_when_configured(monkeypatch):
     def explode(*args, **kwargs):
         raise RuntimeError("bug")
 
-    monkeypatch.setattr("sentrycove.engine.classify", explode)
+    monkeypatch.setattr("signalmoat.engine.classify", explode)
     assert client.get("/", headers={"User-Agent": BROWSER_UA}).status_code == 503
 
 

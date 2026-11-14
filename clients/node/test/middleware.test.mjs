@@ -5,8 +5,8 @@ import { after, before, describe, test } from "node:test";
 
 import express from "express";
 
-import { SentryCoveClient, createFetchGuard } from "../dist/index.js";
-import { sentrycove } from "../dist/express.js";
+import { SignalMoatClient, createFetchGuard } from "../dist/index.js";
+import { signalmoat } from "../dist/express.js";
 import { BROWSER_UA, TOKEN, freePort, listen, startSidecar } from "./helpers.mjs";
 
 let sidecar;
@@ -30,8 +30,8 @@ async function serve(handler) {
 
 function expressApp(options = {}) {
   const app = express();
-  app.use(sentrycove({ url: sidecar.url, token: TOKEN, ...options }));
-  app.get("/", (req, res) => res.json({ caller: req.sentrycove.label }));
+  app.use(signalmoat({ url: sidecar.url, token: TOKEN, ...options }));
+  app.get("/", (req, res) => res.json({ caller: req.signalmoat.label }));
   app.post("/contact", (req, res) => res.json({ received: true }));
   app.post("/login", (req, res) => res.status(401).json({ error: "bad credentials" }));
   app.get("/.env", (req, res) => res.send("SECRET=should-never-be-served"));
@@ -100,7 +100,7 @@ describe("Express middleware against the real decision API", () => {
   });
 
   test("works as plain node:http middleware without Express", async () => {
-    const guard = sentrycove({ url: sidecar.url, token: TOKEN });
+    const guard = signalmoat({ url: sidecar.url, token: TOKEN });
     const base = await serve((req, res) =>
       guard(req, res, (error) => {
         if (error) {
@@ -108,7 +108,7 @@ describe("Express middleware against the real decision API", () => {
           res.end();
           return;
         }
-        res.end(`hello ${req.sentrycove.label}`);
+        res.end(`hello ${req.signalmoat.label}`);
       }),
     );
     const ok = await fetch(`${base}/anything`, { headers: { "user-agent": BROWSER_UA } });
@@ -138,7 +138,7 @@ describe("when the decision API is unavailable", () => {
 
   test("a wrong token is an error, not a silent allow", async () => {
     const errors = [];
-    const client = new SentryCoveClient({
+    const client = new SignalMoatClient({
       url: sidecar.url,
       token: "wrong-token-wrong-token-wrong",
       failOpen: false,
@@ -155,7 +155,7 @@ describe("when the decision API is unavailable", () => {
       /* never answers */
     });
     const errors = [];
-    const client = new SentryCoveClient({ url: slow, token: TOKEN, timeoutMs: 100, onError: (e) => errors.push(e) });
+    const client = new SignalMoatClient({ url: slow, token: TOKEN, timeoutMs: 100, onError: (e) => errors.push(e) });
     const started = Date.now();
     const decision = await client.inspect({ method: "GET", scheme: "http", host: "x", target: "/", headers: [], peerIp: null });
     assert.ok(Date.now() - started < 2000);
@@ -188,14 +188,14 @@ describe("fetch guard (Next.js and other web-standard runtimes)", () => {
 
 describe("configuration", () => {
   test("bad options fail fast at startup", () => {
-    assert.throws(() => sentrycove({ url: sidecar.url, token: "short" }), /token/);
-    assert.throws(() => sentrycove({ url: "127.0.0.1:8787", token: TOKEN }), /url/);
-    assert.throws(() => sentrycove({ url: sidecar.url, token: TOKEN, timeoutMs: 0 }), /timeoutMs/);
+    assert.throws(() => signalmoat({ url: sidecar.url, token: "short" }), /token/);
+    assert.throws(() => signalmoat({ url: "127.0.0.1:8787", token: TOKEN }), /url/);
+    assert.throws(() => signalmoat({ url: sidecar.url, token: TOKEN, timeoutMs: 0 }), /timeoutMs/);
   });
 
   test("the package can also be loaded with require()", () => {
     const require = createRequire(import.meta.url);
-    assert.equal(typeof require("../dist/express.js").sentrycove, "function");
+    assert.equal(typeof require("../dist/express.js").signalmoat, "function");
     assert.equal(typeof require("../dist/index.js").createFetchGuard, "function");
   });
 });

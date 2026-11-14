@@ -1,4 +1,4 @@
-"""Minimal FastAPI app protected by SentryCove.
+"""Minimal FastAPI app protected by SignalMoat.
 
 Run (from the repository root):
     pip install -e ".[dev]" uvicorn
@@ -16,10 +16,10 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 
-from sentrycove import SentryCove
+from signalmoat import SignalMoat
 
 logging.basicConfig(level=logging.INFO)
-POLICY = Path(__file__).with_name("sentrycove.yaml")
+POLICY = Path(__file__).with_name("signalmoat.yaml")
 
 
 @asynccontextmanager
@@ -33,8 +33,8 @@ api = FastAPI(lifespan=lifespan)
 
 @api.get("/")
 def home(request: Request):
-    # Handlers can see who SentryCove thinks is calling.
-    return {"you_are": request.state.sentrycove.label}
+    # Handlers can see who SignalMoat thinks is calling.
+    return {"you_are": request.state.signalmoat.label}
 
 
 @api.post("/contact")
@@ -47,6 +47,6 @@ def login():
     raise HTTPException(status_code=401, detail="invalid credentials")
 
 
-# The one line that matters. (api.add_middleware(SentryCove, config=POLICY) also
+# The one line that matters. (api.add_middleware(SignalMoat, config=POLICY) also
 # works; wrapping explicitly gives you a handle for clean shutdown.)
-app = SentryCove(api, config=POLICY)
+app = SignalMoat(api, config=POLICY)

@@ -6,9 +6,9 @@ off the public internet -- bind it to localhost or a private network.
 
     POST /v1/inspect    -> {"action": "allow" | "block", ...}
     POST /v1/response   -> 204 (reports the app's response status, for login monitoring)
-    GET  /_sentrycove/health
+    GET  /_signalmoat/health
 
-Every /v1 call must carry ``Authorization: Bearer <SENTRYCOVE_API_TOKEN>``.
+Every /v1 call must carry ``Authorization: Bearer <SIGNALMOAT_API_TOKEN>``.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from .engine import Engine, RequestInfo
 from .middleware import Receive, Scope, Send, respond_json
 from .proxy import HEALTH_PATH, run_lifespan
 
-log = logging.getLogger("sentrycove.sidecar")
+log = logging.getLogger("signalmoat.sidecar")
 
 MIN_TOKEN_LENGTH = 16
 MAX_BODY_BYTES = 1024 * 1024
@@ -132,7 +132,7 @@ class DecisionAPI:
         try:
             verdict = await self.engine.inspect(request, req.peer_ip)
         except Exception:
-            log.exception("sentrycove inspection failed")
+            log.exception("signalmoat inspection failed")
             if not self.engine.config.fail_open:
                 await respond_json(send, 503, {"error": "request could not be screened"})
                 return
@@ -173,6 +173,6 @@ class DecisionAPI:
                 status=report.status,
             )
         except Exception:
-            log.exception("sentrycove login monitoring failed")
+            log.exception("signalmoat login monitoring failed")
         await send({"type": "http.response.start", "status": 204, "headers": []})
         await send({"type": "http.response.body", "body": b""})

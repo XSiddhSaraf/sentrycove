@@ -1,6 +1,6 @@
 # Security Policy
 
-SentryCove is security software, so vulnerabilities in it matter more than usual.
+SignalMoat is security software, so vulnerabilities in it matter more than usual.
 
 ## Reporting a vulnerability
 
