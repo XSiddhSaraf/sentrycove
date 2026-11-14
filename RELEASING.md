@@ -100,6 +100,13 @@ one you published by hand), the workflow notices and skips npm instead of failin
 1. Create an account at <https://www.nuget.org>.
 2. Click your user name → **Trusted Publishing** → add a policy with yourself
    as owner and the table above with environment `nuget`.
+   - **Scope:** allow pushing **new packages and new versions** — the package
+     does not exist on nuget.org yet, so the first release creates it.
+   - **Glob pattern:** type `SentryCove.AspNetCore`. The list of existing
+     packages is empty until the first release, which is why the form says
+     "At least one valid glob pattern or package must be specified" until you
+     type one. (`SentryCove.*` also works and would cover future SentryCove
+     packages, at the cost of a broader permission.)
 3. Add a repository *secret* named `NUGET_USER` containing your nuget.org user
    name (the profile name, not your email address). Secrets live next to the
    variables: same page, **Secrets** tab → **New repository secret**.
