@@ -151,6 +151,23 @@ def test_unusable_answers_are_dropped(raw):
     assert run(triage(FakeLLM(raw)).enrich(alert())).triage is None
 
 
+@pytest.mark.parametrize(
+    ("severity", "how_bad", "kept"),
+    [
+        ("critical", "High: active probing.", True),  # one level lower: a fair judgement call
+        ("critical", "Low", False),  # played down by an injected prompt
+        ("critical", "Medium: probably fine.", False),
+        ("high", "**Low** really", False),
+        ("medium", "Critical: worse than it looks", True),  # raising concern is always allowed
+        ("high", "Not sure", False),  # no level word: unusable
+    ],
+)
+def test_note_that_plays_an_alert_down_is_withheld(severity, how_bad, kept):
+    result = run(triage(FakeLLM({**GOOD, "how_bad": how_bad}), min_severity="low").enrich(alert(severity=severity)))
+    assert (result.triage is not None) is kept
+    assert result.severity == severity  # triage never changes the alert itself
+
+
 def test_fenced_answer_is_accepted():
     assert parse_answer("```json\n" + json.dumps(GOOD) + "\n```") == GOOD
 

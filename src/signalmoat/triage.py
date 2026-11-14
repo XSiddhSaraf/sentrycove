@@ -11,7 +11,9 @@ Alert fields such as the request path, User-Agent and agent name are written
 by whoever sent the request, i.e. possibly an attacker. They are passed to the
 model only as quoted JSON data, the model is told they are untrusted, its reply
 must be a small JSON object with three short text fields, and links and chat
-mentions are stripped from that reply before anyone sees it.
+mentions are stripped from that reply before anyone sees it. A note that plays an alert
+down by more than one level (e.g. "Low" for a critical alert) is withheld,
+because that is what a successfully injected prompt looks like.
 
 Supported APIs: Anthropic Messages API and any OpenAI-compatible
 ``/chat/completions`` endpoint (OpenAI, Azure OpenAI via a gateway, vLLM,
@@ -47,6 +49,8 @@ _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f  ‪-‮⁦-⁩]")
 _URL = re.compile(r"(?i)\b(?:https?|ftp|file|javascript|data)://\S+|\bwww\.\S+")
 _MENTION = re.compile(r"<[!@#][^>]*>|@(?:here|channel|everyone)\b", re.IGNORECASE)
 _MARKUP = re.compile(r"[<>`]")
+_LEVEL = re.compile(r"^\W*(low|medium|high|critical)\b", re.IGNORECASE)
+_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
 SYSTEM_PROMPT = """You triage security alerts from SignalMoat, a web application firewall for AI agents and bots.
 You write for a busy developer who is not a security specialist.
@@ -93,6 +97,12 @@ def build_alert_data(alert: Alert, include_client_ip: bool) -> dict[str, Any]:
         "client": ip,
     }
     return {k: _clean(str(v), _FIELD_LIMIT) for k, v in fields.items() if v}
+
+
+def rated_level(answer: dict[str, str]) -> Optional[int]:
+    """The severity the model gave in ``how_bad`` (0=low .. 3=critical), or None."""
+    match = _LEVEL.match(answer.get("how_bad", ""))
+    return _LEVELS[match.group(1).lower()] if match else None
 
 
 def parse_answer(raw: str) -> Optional[dict[str, str]]:
@@ -192,6 +202,25 @@ class Triage:
         answer = parse_answer(raw)
         if answer is None:
             log.warning("alert triage returned an unusable answer; sending the alert without it")
+            return alert
+        from .alerts import SEVERITY_ORDER
+
+        level = rated_level(answer)
+        if level is None:
+            log.warning("alert triage did not rate the alert (how_bad must start with a level); dropped")
+            return alert
+        if level < SEVERITY_ORDER[alert.severity] - 1:
+            # SignalMoat's own severity comes from deterministic rules. A model that plays a
+            # critical alert down to "Low" has most likely been steered by attacker-written
+            # alert fields (prompt injection), so its note is withheld rather than shown.
+            log.warning(
+                "alert triage withheld: model rated a %s %s alert as %s — possible prompt injection in "
+                "the request data (ip %s)",
+                alert.severity,
+                alert.type,
+                answer["how_bad"].split()[0].strip(":.,"),
+                alert.client_ip,
+            )
             return alert
         return replace(alert, triage=answer)
 

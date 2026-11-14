@@ -206,7 +206,9 @@ severity or routing, and if the model is slow, down, over budget or answers
 oddly, the alert is delivered unchanged. Alert fields written by the client
 (path, User-Agent, ...) reach the model only as quoted, length-limited data it
 is told not to obey; its answer must be a small JSON object, and links and
-chat mentions are removed from it. Only the client's network (/24 or /48) is
+chat mentions are removed from it. A note that plays an alert down by more
+than one level ("Low" for a critical alert) is withheld and logged as likely
+prompt injection. Only the client's network (/24 or /48) is
 sent unless you set `include_client_ip: true`.
 
 ## Rollout: monitor → enforce
