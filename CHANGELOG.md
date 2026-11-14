@@ -21,7 +21,10 @@ number and are released together.
 - **AI alert triage** (`alerts.triage`, off by default): important alerts get an
   advisory "what happened / how bad / what to do" note from Anthropic or any
   OpenAI-compatible API, with time, cost and prompt-injection safeguards.
-  Alerts gain an optional `triage` field.
+  A note that rates an alert more than one level below its real
+  severity is withheld as likely prompt injection. Thinking blocks from newer Claude models are skipped, `effort: low` is sent
+  by default and `max_tokens` (default 2048) leaves room for thinking; a rejected
+  note is logged with its stop reason. Alerts gain an optional `triage` field.
 
 ### Changed
 - `Engine.on_response` is now `async` (await it). Only matters if you call the

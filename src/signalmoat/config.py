@@ -139,7 +139,12 @@ class TriageConfig(_Strict):
     api_version: str = Field(default="2026-10-21", pattern=r"^\d{4}-\d{2}-\d{2}$")
     min_severity: Severity = "high"
     timeout_seconds: float = Field(default=8.0, gt=0, le=60)
-    max_tokens: int = Field(default=400, ge=64, le=2000)
+    #: Hard cap on the model's output. On newer Claude models it covers thinking AND the answer,
+    #: so it must leave room for both.
+    max_tokens: int = Field(default=2048, ge=256, le=16000)
+    #: Anthropic only: how hard the model thinks (``output_config.effort``). ``low`` keeps triage
+    #: fast and cheap; ``null`` omits it (for older models that do not accept the setting).
+    effort: Optional[Literal["low", "medium", "high"]] = "low"
     #: Upper bound on LLM calls per hour (cost cap); alerts beyond it are sent without triage.
     max_per_hour: int = Field(default=60, gt=0, le=10_000)
     #: Send the full client IP to the model. Off: only its network (/24 or /48) is sent.

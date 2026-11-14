@@ -11,7 +11,9 @@ Alert fields such as the request path, User-Agent and agent name are written
 by whoever sent the request, i.e. possibly an attacker. They are passed to the
 model only as quoted JSON data, the model is told they are untrusted, its reply
 must be a small JSON object with three short text fields, and links and chat
-mentions are stripped from that reply before anyone sees it.
+mentions are stripped from that reply before anyone sees it. A note that plays an alert
+down by more than one level (e.g. "Low" for a critical alert) is withheld,
+because that is what a successfully injected prompt looks like.
 
 Supported APIs: Anthropic Messages API and any OpenAI-compatible
 ``/chat/completions`` endpoint (OpenAI, Azure OpenAI via a gateway, vLLM,
@@ -47,6 +49,8 @@ _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f  ‪-‮⁦-⁩]")
 _URL = re.compile(r"(?i)\b(?:https?|ftp|file|javascript|data)://\S+|\bwww\.\S+")
 _MENTION = re.compile(r"<[!@#][^>]*>|@(?:here|channel|everyone)\b", re.IGNORECASE)
 _MARKUP = re.compile(r"[<>`]")
+_LEVEL = re.compile(r"^\W*(low|medium|high|critical)\b", re.IGNORECASE)
+_LEVELS = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
 SYSTEM_PROMPT = """You triage security alerts from SignalMoat, a web application firewall for AI agents and bots.
 You write for a busy developer who is not a security specialist.
@@ -93,6 +97,12 @@ def build_alert_data(alert: Alert, include_client_ip: bool) -> dict[str, Any]:
         "client": ip,
     }
     return {k: _clean(str(v), _FIELD_LIMIT) for k, v in fields.items() if v}
+
+
+def rated_level(answer: dict[str, str]) -> Optional[int]:
+    """The severity the model gave in ``how_bad`` (0=low .. 3=critical), or None."""
+    match = _LEVEL.match(answer.get("how_bad", ""))
+    return _LEVELS[match.group(1).lower()] if match else None
 
 
 def parse_answer(raw: str) -> Optional[dict[str, str]]:
@@ -153,6 +163,7 @@ class Triage:
         self._own_client = client is None
         self._limit = _RateLimit(cfg.max_per_hour, clock)
         self._warned_budget = False
+        self._last_stop_reason: Optional[str] = None
 
     @classmethod
     def from_config(cls, cfg: TriageConfig) -> Optional[Triage]:
@@ -191,7 +202,39 @@ class Triage:
             return alert
         answer = parse_answer(raw)
         if answer is None:
-            log.warning("alert triage returned an unusable answer; sending the alert without it")
+            preview = _clean(raw, 160) or "(no text)"
+            hint = ""
+            if self._last_stop_reason == "max_tokens":
+                hint = (
+                    f" The model used its whole max_tokens budget ({self._cfg.max_tokens}) before answering"
+                    " (newer models think first): raise alerts.triage.max_tokens or lower alerts.triage.effort."
+                )
+            log.warning(
+                "alert triage returned an unusable answer (stop_reason=%s, reply starts: %r); sending the alert "
+                "without it.%s",
+                self._last_stop_reason or "-",
+                preview,
+                hint,
+            )
+            return alert
+        from .alerts import SEVERITY_ORDER
+
+        level = rated_level(answer)
+        if level is None:
+            log.warning("alert triage did not rate the alert (how_bad must start with a level); dropped")
+            return alert
+        if level < SEVERITY_ORDER[alert.severity] - 1:
+            # SignalMoat's own severity comes from deterministic rules. A model that plays a
+            # critical alert down to "Low" has most likely been steered by attacker-written
+            # alert fields (prompt injection), so its note is withheld rather than shown.
+            log.warning(
+                "alert triage withheld: model rated a %s %s alert as %s — possible prompt injection in "
+                "the request data (ip %s)",
+                alert.severity,
+                alert.type,
+                answer["how_bad"].split()[0].strip(":.,"),
+                alert.client_ip,
+            )
             return alert
         return replace(alert, triage=answer)
 
@@ -215,16 +258,25 @@ class Triage:
                 "anthropic-version": self._cfg.api_version,
                 "content-type": "application/json",
             },
-            json={
-                "model": self._cfg.model,
-                "max_tokens": self._cfg.max_tokens,
-                "system": SYSTEM_PROMPT,
-                "messages": [{"role": "user", "content": user}],
-            },
+            json=self._anthropic_body(user),
         )
         resp.raise_for_status()
-        blocks = resp.json().get("content") or []
+        data = resp.json()
+        self._last_stop_reason = data.get("stop_reason") if isinstance(data.get("stop_reason"), str) else None
+        blocks = data.get("content") or []
+        # Thinking blocks (newer models think first) are skipped: only the text answer counts.
         return "".join(b.get("text", "") for b in blocks if isinstance(b, dict) and b.get("type") == "text")
+
+    def _anthropic_body(self, user: str) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "model": self._cfg.model,
+            "max_tokens": self._cfg.max_tokens,
+            "system": SYSTEM_PROMPT,
+            "messages": [{"role": "user", "content": user}],
+        }
+        if self._cfg.effort is not None:
+            body["output_config"] = {"effort": self._cfg.effort}
+        return body
 
     async def _openai(self, client: httpx.AsyncClient, user: str) -> str:
         base = (self._cfg.base_url or "https://api.openai.com/v1").rstrip("/")
@@ -241,7 +293,10 @@ class Triage:
             },
         )
         resp.raise_for_status()
-        choices = resp.json().get("choices") or []
+        data = resp.json()
+        choices = data.get("choices") or []
+        finish = choices[0].get("finish_reason") if choices and isinstance(choices[0], dict) else None
+        self._last_stop_reason = "max_tokens" if finish == "length" else finish if isinstance(finish, str) else None
         message = choices[0].get("message", {}) if choices and isinstance(choices[0], dict) else {}
         content = message.get("content") if isinstance(message, dict) else None
         return content if isinstance(content, str) else ""
