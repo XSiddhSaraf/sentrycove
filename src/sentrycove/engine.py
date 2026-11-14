@@ -43,6 +43,7 @@ log = logging.getLogger("sentrycove")
 UNKNOWN_IP = "unknown"
 _HIGH_RISK_SIGNATURE_FAILURES = {"bad signature", "replayed nonce"}
 _MAX_ALERT_PATH = 200
+_MAX_ALERT_METHOD = 16
 
 
 @dataclass
@@ -292,7 +293,7 @@ class Engine:
                     title=title,
                     detail=detail,
                     client_ip=client_ip,
-                    method=method.upper(),
+                    method=method.upper()[:_MAX_ALERT_METHOD],
                     path=raw_path[:_MAX_ALERT_PATH],
                     agent=agent,
                     action_taken="observed",
@@ -318,7 +319,7 @@ class Engine:
                 title=title,
                 detail=detail,
                 client_ip=verdict.client_ip,
-                method=verdict.request.method,
+                method=verdict.request.method[:_MAX_ALERT_METHOD],
                 path=verdict.request.path[:_MAX_ALERT_PATH],
                 agent=verdict.identity.label,
                 action_taken=action,

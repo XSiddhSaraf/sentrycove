@@ -12,3 +12,13 @@ venv/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Node
+node_modules/
+clients/node/dist/
+*.tgz
+
+# .NET
+bin/
+obj/
+*.user

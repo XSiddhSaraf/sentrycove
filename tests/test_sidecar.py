@@ -130,7 +130,7 @@ def test_bad_input_is_rejected_without_echoing_it(api):
         api,
         ("POST", "/v1/inspect", {"json": inspect_body("no-leading-slash"), "headers": AUTH}),
         ("POST", "/v1/inspect", {"content": b"{not json", "headers": AUTH}),
-        ("POST", "/v1/inspect", {"content": b"x" * (300 * 1024), "headers": AUTH}),
+        ("POST", "/v1/inspect", {"content": b"x" * (1100 * 1024), "headers": AUTH}),
         ("GET", "/v1/inspect", {"headers": AUTH}),
         ("POST", "/v1/nope", {"json": {}, "headers": AUTH}),
         ("GET", "/_sentrycove/health", {}),
@@ -167,3 +167,13 @@ def test_cli_validates_config_and_refuses_to_start_without_a_token(tmp_path, mon
     assert main(["proxy"]) == 2
     assert main(["proxy", "--upstream", "not-a-url"]) == 2
     assert "SENTRYCOVE_API_TOKEN" in capsys.readouterr().err
+
+
+def test_oversized_requests_are_still_judged_not_refused(api):
+    """A refusal here would become a fail-open bypass in the calling middleware."""
+    body = inspect_body("/contact?" + "q" * 50_000, "POST", "curl/8.9")
+    body["headers"] += [[f"X-Pad-{i}", "v" * 100] for i in range(2000)]
+    body["method"] = "POST"
+    (r,) = call(api, ("POST", "/v1/inspect", {"json": body, "headers": AUTH}))
+    assert r.status_code == 200 and r.json()["action"] == "block"
+    assert len(api.alerts.records[0].path) <= 200  # alerts stay small

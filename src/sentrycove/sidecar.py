@@ -27,7 +27,7 @@ from .proxy import HEALTH_PATH, run_lifespan
 log = logging.getLogger("sentrycove.sidecar")
 
 MIN_TOKEN_LENGTH = 16
-MAX_BODY_BYTES = 256 * 1024
+MAX_BODY_BYTES = 1024 * 1024
 API_VERSION = 1
 
 
@@ -36,21 +36,25 @@ class _Model(BaseModel):
 
 
 class InspectRequest(_Model):
-    method: str = Field(min_length=1, max_length=32)
+    # Deliberately no per-field length limits: a request this API refuses to parse
+    # would be treated by the calling middleware as "decision unavailable" and, with
+    # fail-open, let through -- so an attacker must not be able to trigger a refusal
+    # with an oversized header or URL. Only the total body size is capped.
+    method: str = Field(min_length=1)
     scheme: str = Field(default="http", pattern=r"^(?i:https?)$")
-    host: str = Field(default="", max_length=512)
+    host: str = ""
     #: Raw request target exactly as received: "/path?query".
-    target: str = Field(min_length=1, max_length=16384, pattern=r"^/")
-    headers: list[tuple[str, str]] = Field(default_factory=list, max_length=300)
+    target: str = Field(pattern=r"^/")
+    headers: list[tuple[str, str]] = Field(default_factory=list)
     #: Address of the TCP peer as seen by the app server (may be a load balancer).
-    peer_ip: Optional[str] = Field(default=None, max_length=64)
+    peer_ip: Optional[str] = None
 
 
 class ResponseReport(_Model):
-    client_ip: str = Field(min_length=1, max_length=64)
-    method: str = Field(min_length=1, max_length=32)
-    target: str = Field(min_length=1, max_length=16384, pattern=r"^/")
-    agent: str = Field(default="unclassified", max_length=200)
+    client_ip: str = Field(min_length=1)
+    method: str = Field(min_length=1)
+    target: str = Field(pattern=r"^/")
+    agent: str = "unclassified"
     status: int = Field(ge=100, le=599)
 
 
@@ -109,7 +113,7 @@ class DecisionAPI:
             return
         payload = await self._read_json(receive)
         if payload is None:
-            await respond_json(send, 400, {"error": "body must be JSON under 256 KiB"})
+            await respond_json(send, 400, {"error": "body must be JSON under 1 MiB"})
             return
         try:
             if path == "/v1/inspect":

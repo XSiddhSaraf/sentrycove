@@ -1,0 +1,40 @@
+{
+  "name": "sentrycove",
+  "version": "0.2.0",
+  "description": "SentryCove middleware for Express, Next.js and any Node server: verify AI agents, enforce per-agent policies, get early warning of attacks.",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/XSiddhSaraf/sentrycove.git",
+    "directory": "clients/node"
+  },
+  "keywords": ["security", "bot-detection", "ai-agents", "express", "nextjs", "middleware", "web-bot-auth"],
+  "type": "module",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./express": {
+      "types": "./dist/express.d.ts",
+      "default": "./dist/express.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md", "LICENSE"],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/middleware.test.mjs",
+    "prepack": "npm run build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "express": "^5.1.0",
+    "typescript": "^5.7.0"
+  }
+}
