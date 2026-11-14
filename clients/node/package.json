@@ -1,6 +1,6 @@
 {
   "name": "signalmoat",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "SignalMoat middleware for Express, Next.js and any Node server: verify AI agents, enforce per-agent policies, get early warning of attacks.",
   "license": "Apache-2.0",
   "repository": {
