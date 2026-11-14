@@ -2,6 +2,7 @@
 
 from .alerts import Alert, AlertDispatcher, LogSink, WebhookSink
 from .config import Config, load_config
+from .engine import Engine, RequestInfo, Verdict
 from .identity import AgentIdentity
 from .middleware import SentryCove
 
@@ -11,8 +12,11 @@ __all__ = [
     "Alert",
     "AlertDispatcher",
     "Config",
+    "Engine",
+    "RequestInfo",
+    "Verdict",
     "LogSink",
     "WebhookSink",
     "load_config",
 ]
-__version__ = "0.1.0"
+__version__ = "0.2.0"

@@ -1,0 +1,31 @@
+# Put SentryCove in front of an existing app with no code changes.
+#
+#   docker compose -f deploy/docker-compose.yml up --build
+#
+# Then browse http://localhost:8080 instead of your app's own port.
+# Replace the "app" service with your own image (or point SENTRYCOVE_UPSTREAM
+# at an app that is already running).
+services:
+  sentrycove:
+    build: ..
+    ports:
+      - "8080:8080"
+    environment:
+      SENTRYCOVE_UPSTREAM: http://app:3000
+      # SENTRYCOVE_SLACK_WEBHOOK: https://hooks.slack.com/services/...
+    volumes:
+      - ../examples/sentrycove.yaml:/etc/sentrycove/sentrycove.yaml:ro
+    depends_on:
+      - app
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    restart: unless-stopped
+
+  # Stand-in for your app. Only SentryCove is published to the host, so the
+  # app cannot be reached around it.
+  app:
+    image: python:3.13-slim
+    command: ["python", "-m", "http.server", "3000"]
+    expose:
+      - "3000"

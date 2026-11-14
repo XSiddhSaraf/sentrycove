@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sentrycove"
-version = "0.1.0"
+version = "0.2.0"
 description = "Open-source agent firewall and early-warning layer for web apps: verify AI agents, enforce per-agent policies, detect hijacked sessions and credential stuffing."
 readme = "README.md"
 license = "Apache-2.0"
@@ -28,7 +28,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+server = ["uvicorn>=0.30"]
 dev = [
+  "uvicorn>=0.30",
   "pytest>=8",
   "fastapi>=0.110",
   "http-message-signatures>=0.5",
@@ -36,6 +38,13 @@ dev = [
   "mypy>=1.10",
   "types-PyYAML",
 ]
+
+[project.scripts]
+sentrycove = "sentrycove.cli:main"
+
+[project.urls]
+Repository = "https://github.com/XSiddhSaraf/sentrycove"
+Issues = "https://github.com/XSiddhSaraf/sentrycove/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/sentrycove"]
@@ -53,7 +62,7 @@ select = ["E", "F", "W", "I", "B", "UP", "S"]
 ignore = ["UP007", "UP045"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*" = ["S101", "S106"]
+"tests/*" = ["S101", "S105", "S106"]
 
 [tool.mypy]
 python_version = "3.10"
