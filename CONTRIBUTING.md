@@ -19,7 +19,8 @@ accepting the first external contribution. -->
 1. Open an issue describing the change for anything non-trivial.
 2. Fork, create a branch, and add tests — every detection needs a test that
    shows it firing and a test that shows it staying quiet on normal traffic.
-3. Run `pytest`, `ruff check src tests` and `mypy --ignore-missing-imports src`.
+3. Run `pytest`, `ruff check src tests` and `mypy --ignore-missing-imports src`; if you touched
+   `clients/`, also run `npm test` in `clients/node` and the .NET test runner (see the README).
 4. Open a pull request.
 
 ## Design rules
@@ -28,3 +29,6 @@ accepting the first external contribution. -->
 - Bounded resources: every tracker must have a size cap and expiry.
 - No network calls to attacker-controlled destinations.
 - Never log or alert with raw secrets, tokens or passwords.
+- One engine: detection logic lives in `src/sentrycove/`. The Node and .NET packages stay thin
+  clients of the decision API so every language behaves identically.
+- Match on canonical paths (`sentrycove.paths`) so rules cannot be dodged with encoding tricks.
