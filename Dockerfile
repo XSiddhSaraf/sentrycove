@@ -4,7 +4,7 @@
 #   docker run -p 8080:8080 -e SIGNALMOAT_UPSTREAM=http://host.docker.internal:3000 signalmoat
 #
 # Mount your own policy over /etc/signalmoat/signalmoat.yaml.
-FROM python:3.13-slim
+FROM python:3.15-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
