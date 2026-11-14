@@ -11,9 +11,19 @@ running, and the registry issues a credential that lasts minutes.
 
 ## One-time setup
 
-Each registry stays switched off until you set its repository variable
-(**Settings → Secrets and variables → Actions → Variables → New repository
-variable**), so you can enable them one at a time.
+Each registry stays switched off until you set its repository variable, so
+you can enable them one at a time.
+
+**Where to set a repository variable.** On GitHub (not on PyPI, npm or NuGet):
+
+1. Open <https://github.com/XSiddhSaraf/sentrycove/settings/variables/actions>
+   — or, from the repository page: **Settings** → **Secrets and variables** →
+   **Actions** → the **Variables** tab.
+2. Click **New repository variable**.
+3. Enter the name (for example `PUBLISH_PYPI`) and the value `true`, then click
+   **Add variable**.
+
+To switch a registry off again, delete the variable or change its value.
 
 Use these values wherever a registry asks which workflow to trust:
 
@@ -29,7 +39,8 @@ Use these values wherever a registry asks which workflow to trust:
 1. Create an account at <https://pypi.org> and turn on two-factor authentication.
 2. Open **Account → Publishing** and add a *pending publisher* for GitHub:
    PyPI project name `sentrycove`, plus the table above with environment `pypi`.
-3. Set the repository variable `PUBLISH_PYPI` to `true`.
+3. Set the repository variable `PUBLISH_PYPI` to `true` on GitHub
+   ([where to set it](#one-time-setup)).
 
 The name `sentrycove` is not reserved until the first release is published, so
 do not leave a long gap between steps 2 and the first release.
@@ -47,7 +58,8 @@ do not leave a long gap between steps 2 and the first release.
    Actions using the table above with environment `npm`. Do this shortly before
    your next release: npm drops a new trusted-publisher entry that has not
    published successfully within two days.
-4. Set the repository variable `PUBLISH_NPM` to `true`.
+4. Set the repository variable `PUBLISH_NPM` to `true` on GitHub
+   ([where to set it](#one-time-setup)).
 
 ### NuGet
 
@@ -55,8 +67,10 @@ do not leave a long gap between steps 2 and the first release.
 2. Click your user name → **Trusted Publishing** → add a policy with yourself
    as owner and the table above with environment `nuget`.
 3. Add a repository *secret* named `NUGET_USER` containing your nuget.org user
-   name (the profile name, not your email address).
-4. Set the repository variable `PUBLISH_NUGET` to `true`.
+   name (the profile name, not your email address). Secrets live next to the
+   variables: same page, **Secrets** tab → **New repository secret**.
+4. Set the repository variable `PUBLISH_NUGET` to `true` on GitHub
+   ([where to set it](#one-time-setup)).
 
 ### Container image
 
