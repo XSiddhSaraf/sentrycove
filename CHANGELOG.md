@@ -4,6 +4,16 @@ All notable changes to SignalMoat (called SentryCove up to 0.2.1) are recorded h
 Node package, the .NET package and the container image share one version
 number and are released together.
 
+## 0.3.2
+
+No changes to how SignalMoat behaves.
+
+### Added
+- SignalMoat icon: shown on the PyPI, npm and NuGet package pages, and as the
+  NuGet package icon. Icon files are in `assets/`.
+- Getting Started guide (`GETTING_STARTED.md`), linked from PyPI as the
+  project's documentation.
+
 ## 0.3.1
 
 No changes to how SignalMoat behaves. This release moves npm publishing to the
