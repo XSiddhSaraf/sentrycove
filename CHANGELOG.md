@@ -4,6 +4,11 @@ All notable changes to SignalMoat (called SentryCove up to 0.2.1) are recorded h
 Node package, the .NET package and the container image share one version
 number and are released together.
 
+## 0.3.1
+
+No changes to how SignalMoat behaves. This release moves npm publishing to the
+automated release pipeline (trusted publishing), as PyPI and NuGet already are.
+
 ## 0.3.0
 
 ### Changed (breaking: renamed)
