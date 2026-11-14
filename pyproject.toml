@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "sentrycove"
-version = "0.2.0"
+version = "0.2.1"
 description = "Open-source agent firewall and early-warning layer for web apps: verify AI agents, enforce per-agent policies, detect hijacked sessions and credential stuffing."
 readme = "README.md"
 license = "Apache-2.0"

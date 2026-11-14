@@ -4,6 +4,17 @@ All notable changes to SentryCove are recorded here. The Python package, the
 Node package, the .NET package and the container image share one version
 number and are released together.
 
+## 0.2.1
+
+No changes to how SentryCove behaves. This is the first version published by
+the automated release pipeline.
+
+### Added
+- Release workflow that publishes to PyPI, npm and NuGet via trusted publishing
+  (no stored tokens), builds a multi-arch container image, and creates a GitHub
+  release — after checking that all versions match and the full test suite passes.
+- `RELEASING.md` with step-by-step setup for each registry.
+
 ## 0.2.0
 
 First public release under the name SentryCove (the 0.1 prototype was called AgentGate).
