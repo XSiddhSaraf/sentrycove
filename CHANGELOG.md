@@ -4,7 +4,7 @@ All notable changes to SignalMoat (called SentryCove up to 0.2.1) are recorded h
 Node package, the .NET package and the container image share one version
 number and are released together.
 
-## Unreleased
+## 0.4.0
 
 ### Added
 - **Shared state in Redis** (`state.backend: redis`, `pip install "signalmoat[redis]"`):
