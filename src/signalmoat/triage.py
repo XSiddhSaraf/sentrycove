@@ -163,6 +163,7 @@ class Triage:
         self._own_client = client is None
         self._limit = _RateLimit(cfg.max_per_hour, clock)
         self._warned_budget = False
+        self._last_stop_reason: Optional[str] = None
 
     @classmethod
     def from_config(cls, cfg: TriageConfig) -> Optional[Triage]:
@@ -201,7 +202,20 @@ class Triage:
             return alert
         answer = parse_answer(raw)
         if answer is None:
-            log.warning("alert triage returned an unusable answer; sending the alert without it")
+            preview = _clean(raw, 160) or "(no text)"
+            hint = ""
+            if self._last_stop_reason == "max_tokens":
+                hint = (
+                    f" The model used its whole max_tokens budget ({self._cfg.max_tokens}) before answering"
+                    " (newer models think first): raise alerts.triage.max_tokens or lower alerts.triage.effort."
+                )
+            log.warning(
+                "alert triage returned an unusable answer (stop_reason=%s, reply starts: %r); sending the alert "
+                "without it.%s",
+                self._last_stop_reason or "-",
+                preview,
+                hint,
+            )
             return alert
         from .alerts import SEVERITY_ORDER
 
@@ -244,16 +258,25 @@ class Triage:
                 "anthropic-version": self._cfg.api_version,
                 "content-type": "application/json",
             },
-            json={
-                "model": self._cfg.model,
-                "max_tokens": self._cfg.max_tokens,
-                "system": SYSTEM_PROMPT,
-                "messages": [{"role": "user", "content": user}],
-            },
+            json=self._anthropic_body(user),
         )
         resp.raise_for_status()
-        blocks = resp.json().get("content") or []
+        data = resp.json()
+        self._last_stop_reason = data.get("stop_reason") if isinstance(data.get("stop_reason"), str) else None
+        blocks = data.get("content") or []
+        # Thinking blocks (newer models think first) are skipped: only the text answer counts.
         return "".join(b.get("text", "") for b in blocks if isinstance(b, dict) and b.get("type") == "text")
+
+    def _anthropic_body(self, user: str) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "model": self._cfg.model,
+            "max_tokens": self._cfg.max_tokens,
+            "system": SYSTEM_PROMPT,
+            "messages": [{"role": "user", "content": user}],
+        }
+        if self._cfg.effort is not None:
+            body["output_config"] = {"effort": self._cfg.effort}
+        return body
 
     async def _openai(self, client: httpx.AsyncClient, user: str) -> str:
         base = (self._cfg.base_url or "https://api.openai.com/v1").rstrip("/")
@@ -270,7 +293,10 @@ class Triage:
             },
         )
         resp.raise_for_status()
-        choices = resp.json().get("choices") or []
+        data = resp.json()
+        choices = data.get("choices") or []
+        finish = choices[0].get("finish_reason") if choices and isinstance(choices[0], dict) else None
+        self._last_stop_reason = "max_tokens" if finish == "length" else finish if isinstance(finish, str) else None
         message = choices[0].get("message", {}) if choices and isinstance(choices[0], dict) else {}
         content = message.get("content") if isinstance(message, dict) else None
         return content if isinstance(content, str) else ""

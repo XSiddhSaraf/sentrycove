@@ -1,0 +1,36 @@
+# SignalMoat policy protecting a Datasette instance, with AI alert triage on.
+version: 1
+mode: enforce
+fail_open: true
+trusted_proxy_hops: 1        # one TLS terminator (nginx / Cloudflare) in front of SignalMoat
+
+rules:
+  # Scripts may not bulk-export the data as JSON/CSV.
+  - name: no-scripted-bulk-export
+    paths: ["*.json", "*.csv"]
+    agents: [automation]
+    action: block
+    severity: high
+
+honeypots:
+  paths: ["/.env", "/.git/*", "/wp-login.php", "/backup*"]
+  ban_seconds: 600
+
+ja4:
+  enabled: true
+  header: cf-ja4             # written by the TLS terminator
+  alert_on_browser_mismatch: true
+
+alerts:
+  cooldown_seconds: 60
+  sinks:
+    - type: log
+      min_severity: low
+  triage:
+    enabled: true
+    provider: anthropic
+    model: claude-haiku-5-5
+    api_key_env: ANTHROPIC_API_KEY
+    min_severity: medium
+    max_per_hour: 30
+    timeout_seconds: 15

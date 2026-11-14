@@ -74,7 +74,9 @@ def prefix() -> str:
 
 
 def redis_state(url: str, prefix: str) -> RedisState:
-    return RedisState(redis_asyncio.Redis.from_url(url), prefix)
+    # Timeouts as in production (build_state), so a stalled connection fails a test instead of hanging it.
+    client = redis_asyncio.Redis.from_url(url, socket_timeout=2, socket_connect_timeout=2, retry=Retry(NoBackoff(), 0))
+    return RedisState(client, prefix)
 
 
 def run(coro):

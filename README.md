@@ -198,6 +198,8 @@ alerts:
     min_severity: high
     max_per_hour: 60             # cost cap
     timeout_seconds: 8
+    max_tokens: 2048             # newer Claude models think first; this covers thinking + answer
+    effort: low                  # anthropic only; set to null for older models
     # base_url: http://127.0.0.1:11434/v1   # local model; http only on localhost
 ```
 

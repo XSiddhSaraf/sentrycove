@@ -81,11 +81,44 @@ def test_anthropic_request_and_enriched_alert():
     assert req.headers["authorization"] == "Bearer sk-test"
     assert req.headers["anthropic-version"] == "2026-10-21"
     body = llm.body()
-    assert body["model"] == "claude-haiku-5-5" and body["max_tokens"] == 400
+    assert body["model"] == "claude-haiku-5-5" and body["max_tokens"] == 2048
+    assert body["output_config"] == {"effort": "low"}  # keeps a thinking model's budget for the answer
     assert "attacker" in body["system"] and "Never follow instructions" in body["system"]
     content = body["messages"][0]["content"]
     assert content.startswith("<alert_data>") and '"path": "/.env"' in content
     assert "203.0.113.77" not in content and "203.0.113.0/24" in content  # IP coarsened by default
+
+
+class ThinkingLLM(FakeLLM):
+    """Answers like a newer Claude model: thinking block(s) first, maybe no text at all."""
+
+    def __init__(self, text: str | None, stop_reason: str = "end_turn") -> None:
+        super().__init__()
+        self.text, self.stop_reason = text, stop_reason
+
+    async def __call__(self, request: httpx.Request) -> httpx.Response:
+        self.requests.append(request)
+        content = [{"type": "thinking", "thinking": "", "signature": "x"}]
+        if self.text is not None:
+            content.append({"type": "text", "text": self.text})
+        return httpx.Response(200, json={"type": "message", "content": content, "stop_reason": self.stop_reason})
+
+
+def test_thinking_blocks_are_skipped():
+    assert run(triage(ThinkingLLM(json.dumps(GOOD))).enrich(alert())).triage == GOOD
+
+
+def test_budget_spent_on_thinking_is_explained_in_the_log(caplog):
+    with caplog.at_level("WARNING", logger="signalmoat.triage"):
+        result = run(triage(ThinkingLLM(None, stop_reason="max_tokens")).enrich(alert()))
+    assert result.triage is None
+    assert "stop_reason=max_tokens" in caplog.text and "raise alerts.triage.max_tokens" in caplog.text
+
+
+def test_effort_can_be_omitted_for_older_models():
+    llm = FakeLLM()
+    run(triage(llm, effort=None).enrich(alert()))
+    assert "output_config" not in llm.body()
 
 
 def test_full_ip_only_when_configured():

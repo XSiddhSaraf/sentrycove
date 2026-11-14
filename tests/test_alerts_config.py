@@ -41,6 +41,21 @@ def test_dedupe_and_severity_routing():
     assert [a.type for a in high_sink.sent] == ["y"]
 
 
+def test_shutdown_never_hangs_on_a_stuck_sink():
+    class StuckSink(ListSink):
+        async def send(self, alert: Alert) -> None:
+            await asyncio.sleep(3600)
+
+    async def go():
+        d = AlertDispatcher([(StuckSink(), "low")], cooldown_seconds=0)
+        d.emit(Alert("x", "high", "t"))
+        started = asyncio.get_running_loop().time()
+        await d.aclose(timeout=0.2)
+        return asyncio.get_running_loop().time() - started
+
+    assert asyncio.run(go()) < 2
+
+
 def test_slack_payload_escapes_markup():
     sink = WebhookSink("https://hooks.example/x", 1.0, slack=True)
     payload = sink._payload(Alert("t", "high", "<script>&", path="/a<b>"))

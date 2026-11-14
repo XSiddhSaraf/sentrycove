@@ -188,13 +188,27 @@ class AlertDispatcher:
         except Exception as exc:  # delivery problems must never affect traffic
             log.warning("alert delivery via %s failed: %s", type(sink).__name__, exc)
 
-    async def drain(self) -> None:
-        """Wait for queued deliveries (useful in tests and on shutdown)."""
-        while self._tasks:
-            await asyncio.gather(*list(self._tasks), return_exceptions=True)
+    async def drain(self, timeout: Optional[float] = None) -> None:
+        """Wait for queued deliveries (useful in tests and on shutdown).
 
-    async def aclose(self) -> None:
-        await self.drain()
+        With ``timeout``, deliveries still running after that many seconds are
+        cancelled (and logged), so a stuck sink can never hang shutdown.
+        """
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while self._tasks:
+            remaining = None if deadline is None else deadline - time.monotonic()
+            if remaining is not None and remaining <= 0:
+                stuck = list(self._tasks)
+                log.warning("cancelling %d alert deliveries still running at shutdown", len(stuck))
+                for task in stuck:
+                    task.cancel()
+                await asyncio.gather(*stuck, return_exceptions=True)
+                self._tasks.difference_update(stuck)
+                return
+            await asyncio.wait(list(self._tasks), timeout=remaining)
+
+    async def aclose(self, timeout: float = 15.0) -> None:
+        await self.drain(timeout)
         for sink, _ in self._sinks:
             await sink.aclose()
         if self._triage is not None:
