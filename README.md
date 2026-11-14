@@ -7,7 +7,7 @@ Know *which* AI agent is calling your app, decide what each one may do, and get
 an alert within seconds when someone probes your app, brute-forces logins or
 replays a stolen session.
 
-> Status: **alpha (0.3)**. Start in `monitor` mode. APIs may change before 1.0.
+> Status: **alpha (0.4)**. Start in `monitor` mode. APIs may change before 1.0.
 > SignalMoat was called **SentryCove** up to version 0.2.1; see the [changelog](https://github.com/XSiddhSaraf/signalmoat/blob/main/CHANGELOG.md) for what to rename.
 
 **New here? Follow the [Getting Started guide](https://github.com/XSiddhSaraf/signalmoat/blob/main/GETTING_STARTED.md)**

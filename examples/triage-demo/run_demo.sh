@@ -17,8 +17,7 @@ fi
 
 if [[ ! -d .venv ]]; then
   python3 -m venv .venv
-  .venv/bin/pip install -q datasette \
-    "signalmoat[server] @ git+https://github.com/XSiddhSaraf/signalmoat@roadmap-redis-websocket-ja4-triage"
+  .venv/bin/pip install -q datasette "signalmoat[server]>=0.4.0"
 fi
 PY=.venv/bin/python; BIN=.venv/bin
 
