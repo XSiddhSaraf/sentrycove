@@ -67,10 +67,30 @@ Check that <https://www.npmjs.com/package/sentrycove> shows the new version.
 **Later versions, automatically.** Do this shortly before your *next* release —
 npm drops a trusted-publisher entry that has not published within two days:
 
-1. Open <https://www.npmjs.com/package/sentrycove/access> and find **Trusted Publisher**.
-2. Choose **GitHub Actions** and enter the table above with environment `npm`.
-3. Set the repository variable `PUBLISH_NPM` to `true` on GitHub
+1. Sign in to npmjs.com and open <https://www.npmjs.com/package/sentrycove/access>
+   (from the package page: the **Settings** tab). This page only exists once
+   the first version has been published. npm may ask for your 2FA code.
+2. Scroll to the **Trusted Publisher** section and click **GitHub Actions**.
+3. Fill in the form exactly like this:
+
+   | Form field | What to type |
+   |---|---|
+   | Organization or user | `XSiddhSaraf` |
+   | Repository | `sentrycove` |
+   | Workflow filename | `release.yml` (the file name only, with `.yml`, no folder) |
+   | Environment name | `npm` |
+
+   If the form has an **Allowed actions** choice, tick **npm publish** — that
+   is the command the release workflow runs.
+4. Click the button that saves the publisher (**Set up connection**) and
+   confirm with 2FA if asked. The section should now list
+   `XSiddhSaraf/sentrycove` with `release.yml`.
+5. Set the repository variable `PUBLISH_NPM` to `true` on GitHub
    ([where to set it](#one-time-setup)).
+
+npm does not check these values when you save them; a typo only shows up as a
+failed publish. An entry cannot be edited afterwards — delete it and add it
+again.
 
 If a release tag is pushed for a version that is already on npm (such as the
 one you published by hand), the workflow notices and skips npm instead of failing.
